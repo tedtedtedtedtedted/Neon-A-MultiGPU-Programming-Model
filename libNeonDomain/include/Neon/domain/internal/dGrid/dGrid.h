@@ -183,7 +183,7 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dCell>
 
         Neon::index_3d                                       halo;
         std::vector<Neon::set::DataSet<PartitionIndexSpace>> partitionIndexSpaceVec;
-        Neon::sys::patterns::Engine                          reduceEngine;        
+        Neon::sys::patterns::Engine                          reduceEngine;
     };
     std::shared_ptr<data_t> m_data;
 };
