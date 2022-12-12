@@ -7,11 +7,11 @@ namespace Neon::domain::tool {
  * A helper class to storage and access partitions parametrically w.r.t Neon::DataView and Neon::Executions
  */
 template <typename Partition>
-struct PartitionStorage
+struct PartitionTable
 {
-    PartitionStorage() = default;
+    PartitionTable() = default;
 
-    explicit PartitionStorage(Neon::Backend& bk);
+    explicit PartitionTable(Neon::Backend& bk);
 
     auto getPartition(Neon::Execution execution,
                       Neon::DataView  dw,
@@ -23,12 +23,16 @@ struct PartitionStorage
                       Neon::SetIdx    setIdx)
         const -> const Partition&;
 
+    template <class Lambda>
+    auto forEachConfiguration(Lambda& lambda);
+
    private:
     using PartitionsByDevice = Neon::set::DataSet<Partition>;
     using PartitionByDeviceByDataView = std::array<PartitionsByDevice, Neon::DataViewUtil::nConfig>;
     using PartitionByDeviceByDataViewByExecution = std::array<PartitionByDeviceByDataView, Neon::ExecutionUtils::numConfigurations>;
 
     PartitionByDeviceByDataViewByExecution mPartitions;
+    int                                    mSetSize = 0;
 };
 
 }  // namespace Neon::domain::tool

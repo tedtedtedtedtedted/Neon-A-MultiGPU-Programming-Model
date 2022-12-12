@@ -15,13 +15,10 @@ namespace Neon::domain::tool::details {
 template <typename GridTransformation>
 tGrid<GridTransformation>::tGrid(FoundationGrid& foundationGrid)
 {
-    mStorage = std::make_shared<Storage>();
+    Neon::Backend& bk = foundationGrid.getBackend();
+    mStorage = std::make_shared<Storage>(bk);
     mStorage.foundationGrid = foundationGrid;
-    Neon::Backend& bk = mStorage->foundationGrid.getBackend();
 
-    for (int i = 0; i < Neon::DataViewUtil::nConfig; i++) {
-        mStorage->indexSpace[i] = bk.devSet().newDataSet<PartitionIndexSpace>();
-    }
     GridTransformation::initPartitionIndexSpace(mStorage->foundationGrid,
                                                 NEON_OUT mStorage->indexSpace);
 }
@@ -30,6 +27,27 @@ template <typename GridTransformation>
 tGrid<GridTransformation>::tGrid()
 {
     mStorage = std::make_shared<Storage>();
+}
+
+template <typename GridTransformation>
+template <typename ActiveCellLambda>
+tGrid<GridTransformation>::
+    tGrid(const Neon::Backend&         backend,
+          const Neon::int32_3d&        dimension,
+          const ActiveCellLambda&      activeCellLambda,
+          const Neon::domain::Stencil& stencil,
+          const Vec_3d<double>&        spacingData,
+          const Vec_3d<double>&        origin)
+{
+    mStorage = std::make_shared<Storage>(backend);
+    mStorage->foundationGrid = FoundationGrid(backend,
+                                              dimension,
+                                              activeCellLambda,
+                                              stencil,
+                                              spacingData,
+                                              origin);
+    GridTransformation::initPartitionIndexSpace(mStorage->foundationGrid,
+                                                NEON_OUT mStorage->indexSpace);
 }
 
 template <typename GridTransformation>
@@ -55,7 +73,7 @@ auto tGrid<GridTransformation>::getPartitionIndexSpace(Neon::DeviceType devE,
 
 template <typename GridTransformation>
 template <typename T, int C>
-auto tGrid<GridTransformation>::newField(const std::string   fieldUserName,
+auto tGrid<GridTransformation>::newField(const std::string&  fieldUserName,
                                          int                 cardinality,
                                          T                   inactiveValue,
                                          Neon::DataUse       dataUse,
@@ -77,6 +95,18 @@ auto tGrid<GridTransformation>::newField(const std::string   fieldUserName,
                       memoryOptions,
                       *this,
                       cardinality);
+
+    return field;
+}
+
+template <typename GridTransformation>
+template <typename T, int C>
+auto tGrid<GridTransformation>::newField(typename FoundationGrid::template Field<T, C>& foundationField)
+    const -> tGrid::Field<T, C>
+{
+    Neon::Backend& bk = mStorage->foundationGrid.getBackend();
+
+    Field<T, C> field(foundationField);
 
     return field;
 }

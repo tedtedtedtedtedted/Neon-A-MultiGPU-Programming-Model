@@ -81,7 +81,7 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dCell>
 
     auto getPartitionIndexSpace(Neon::DeviceType devE,
                                 SetIdx           setIdx,
-                                Neon::DataView   dataView)
+                                Neon::DataView   dataView) const
         -> const PartitionIndexSpace&;
 
     /**

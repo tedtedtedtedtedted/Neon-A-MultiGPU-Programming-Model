@@ -8,6 +8,7 @@
 #include "Neon/domain/interface/Stencil.h"
 #include "Neon/domain/interface/common.h"
 #include "Neon/domain/patterns/PatternScalar.h"
+#include "Neon/domain/tools/IndexSpaceTable.h"
 
 /**
  * template <typename FoundationGrid>
@@ -30,7 +31,7 @@ class tField;
 
 template <typename GridTransformation>
 class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransformation>,
-                                                               typename GridTransformation::Partition::Cell>
+                                                               typename GridTransformation::FoundationGrid::Cell>
 {
    public:
     template <class T, int card>
@@ -41,7 +42,7 @@ class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransfo
 
    private:
     using GridBaseTemplate = Neon::domain::interface::GridBaseTemplate<tGrid<GridTransformation>,
-                                                                       typename GridTransformation::Partition::Cell>;
+                                                                       typename GridTransformation::FoundationGrid::Cell>;
 
     using FoundationGrid = typename GridTransformation::FoundationGrid;
 
@@ -55,6 +56,14 @@ class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransfo
     tGrid& operator=(const tGrid& other);      // copy assignment
     tGrid& operator=(tGrid&& other) noexcept;  // move assignment
 
+    template <typename ActiveCellLambda>
+    tGrid(const Neon::Backend&         backend,
+          const Neon::int32_3d&        dimension /**< Dimension of the box containing the sparse domain */,
+          const ActiveCellLambda&      activeCellLambda /**< InOrOutLambda({x,y,z}->{true, false}) */,
+          const Neon::domain::Stencil& stencil,
+          const Vec_3d<double>&        spacingData = Vec_3d<double>(1, 1, 1) /**< Spacing, i.e. size of a voxel */,
+          const Vec_3d<double>&        origin = Vec_3d<double>(0, 0, 0) /**<      Origin  */);
+
     auto getLaunchParameters(Neon::DataView        dataView,
                              const Neon::index_3d& blockSize,
                              const size_t&         shareMem) const
@@ -66,11 +75,15 @@ class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransfo
         -> const PartitionIndexSpace&;
 
     template <typename T, int C = 0>
-    auto newField(const std::string   fieldUserName,
+    auto newField(const std::string&  fieldUserName,
                   int                 cardinality,
                   T                   inactiveValue,
                   Neon::DataUse       dataUse = Neon::DataUse::IO_COMPUTE,
                   Neon::MemoryOptions memoryOptions = Neon::MemoryOptions()) const
+        -> Field<T, C>;
+
+    template <typename T, int C = 0>
+    auto newField(typename FoundationGrid::template Field<T, C>& field) const
         -> Field<T, C>;
 
     template <typename LoadingLambda>
@@ -86,10 +99,6 @@ class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransfo
         const
         -> Neon::set::Container;
 
-    auto getKernelConfig(int            streamIdx,
-                         Neon::DataView dataView)
-        -> Neon::set::KernelConfig;
-
     auto isInsideDomain(const Neon::index_3d& idx) const
         -> bool final;
 
@@ -99,14 +108,20 @@ class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransfo
    private:
     struct Storage
     {
+        Storage() = default;
+        explicit Storage(Neon::Backend& bk)
+        {
+            indexSpaceTable = Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace>(bk);
+        }
         using IndexSpaceInformation = std::array<Neon::set::DataSet<PartitionIndexSpace>, Neon::DataViewUtil::nConfig>;
 
-        FoundationGrid        foundationGrid;
-        IndexSpaceInformation indexSpace;
+        FoundationGrid                                           foundationGrid;
+        Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace> indexSpaceTable;
         // std::array<Neon::set::DataSet<PartitionIndexSpace>> partitionIndexSpaceVec;
     };
 
     std::shared_ptr<Storage> mStorage;
 };
+
 
 }  // namespace Neon::domain::tool::details
