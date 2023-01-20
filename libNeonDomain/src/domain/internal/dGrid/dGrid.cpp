@@ -125,7 +125,7 @@ auto dGrid::getLaunchParameters(const Neon::DataView  dataView,
 
 auto dGrid::getPartitionIndexSpace(Neon::DeviceType devE,
                                    SetIdx           setIdx,
-                                   Neon::DataView   dataView)
+                                   Neon::DataView   dataView) const
     -> const PartitionIndexSpace&
 {
     return m_data->partitionIndexSpaceVec.at(static_cast<int>(dataView)).local(devE, setIdx, dataView);
