@@ -113,7 +113,7 @@ class tGrid : public Neon::domain::interface::GridBaseTemplate<tGrid<GridTransfo
         {
             indexSpaceTable = Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace>(bk);
         }
-        using IndexSpaceInformation = std::array<Neon::set::DataSet<PartitionIndexSpace>, Neon::DataViewUtil::nConfig>;
+        //using IndexSpaceInformation = std::array<Neon::set::DataSet<PartitionIndexSpace>, Neon::DataViewUtil::nConfig>;
 
         FoundationGrid                                           foundationGrid;
         Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace> indexSpaceTable;

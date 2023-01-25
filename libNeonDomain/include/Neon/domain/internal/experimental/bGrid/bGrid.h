@@ -12,6 +12,8 @@
 #include "Neon/domain/internal/experimental/bGrid/bPartitionIndexSpace.h"
 
 #include "Neon/domain/patterns/PatternScalar.h"
+
+#include "Neon/domain/tools/IndexSpaceTable.h"
 #include "Neon/domain/tools/PointHashTable.h"
 
 namespace Neon::domain::internal::experimental::bGrid {
@@ -132,8 +134,14 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
    private:
     struct Data
     {
-        int blockSize;
-        int discreteVoxelSpacing;
+        Data() = default;
+        explicit Data(Neon::Backend& bk)
+        {
+            mPartitionIndexSpace = Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace>(bk);
+        }
+
+        int blockSize = 0;
+        int discreteVoxelSpacing = 0;
 
         // number of active voxels in each block
         Neon::set::DataSet<uint64_t> mNumActiveVoxel;
@@ -159,13 +167,13 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
 
         // Partition index space
         // It is an std vector for the three type of data views we have
-        std::array<Neon::set::DataSet<PartitionIndexSpace>, 3> mPartitionIndexSpace;
+        Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace> mPartitionIndexSpace;
 
         // Store the block origin as a key and its 1d index as value
         Neon::domain::tool::PointHashTable<int32_t, uint32_t> mBlockOriginTo1D;
 
         // Store the block ID as a key and its 1d index as value
-        Neon::domain::tool::PointHashTable<int32_t, uint32_t> mBlock3DId To1D;
+        Neon::domain::tool::PointHashTable<int32_t, uint32_t> mBlock3DIdTo1D;
 
         // number of blocks in each device
         Neon::set::DataSet<uint64_t> mNumBlocks;

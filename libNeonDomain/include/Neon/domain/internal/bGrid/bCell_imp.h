@@ -1,3 +1,4 @@
+#pragma once
 #include "Neon/domain/internal/bGrid/bCell.h"
 
 namespace Neon::domain::internal::bGrid {

@@ -1,3 +1,4 @@
+#pragma once
 #include "Neon/domain/internal/bGrid/bPartitionIndexSpace.h"
 
 namespace Neon::domain::internal::bGrid {

@@ -45,11 +45,7 @@ bGrid::bGrid(const Neon::Backend&         backend,
     mData->mBlockOriginTo1D = Neon::domain::tool::PointHashTable<int32_t, uint32_t>(domainSize * discreteVoxelSpacing);
 
     mData->mNumBlocks = backend.devSet().template newDataSet<uint64_t>();
-
-
     mData->mNumActiveVoxel = backend.devSet().template newDataSet<uint64_t>();
-    mData->mNumActiveVoxel[0] = 0;
-
 
     Neon::int32_3d block3DSpan(NEON_DIVIDE_UP(domainSize.x, blockSize),
                                NEON_DIVIDE_UP(domainSize.y, blockSize),
@@ -105,7 +101,7 @@ bGrid::bGrid(const Neon::Backend&         backend,
 
     const int64_t avgBlocksPerPartition = NEON_DIVIDE_UP(numBlocks, backend.devSet().setCardinality());
     auto const    zSliceBlockDistribution = backend.devSet().newDataSet<ZSliceRanges>([](Neon::SetIdx,
-                                                                                 ZSliceRanges& v) {
+                                                                                      ZSliceRanges& v) {
         v.nBlocks = 0;
         v.zFirst = 0;
         v.zLast = 0;
@@ -127,9 +123,10 @@ bGrid::bGrid(const Neon::Backend&         backend,
             }
         }
     });
-    //-----------------------------------------------------------------------
 
-
+    mData->mNumBlocks.forEach([](const Neon::SetIdx& setIdx, uint64_t& val) {
+        val = zSliceBlockDistribution[setIdx].nBlocks;
+    });
 
 
     Neon::MemoryOptions memOptionsAoS(Neon::DeviceType::CPU,
@@ -139,30 +136,29 @@ bGrid::bGrid(const Neon::Backend&         backend,
                                       Neon::MemoryLayout::arrayOfStructs);
 
     // origin
-    mData->mOrigin = backend.devSet().template newMemSet<Neon::int32_3d>({Neon::DataUse::IO_COMPUTE},
+    mData->mOrigin = backend.devSet().template newMemSet<Neon::int32_3d>(Neon::DataUse::IO_COMPUTE,
                                                                          1,
                                                                          memOptionsAoS,
                                                                          mData->mNumBlocks);
 
 
     // Stencil linear/relative index
-    auto stencilNghSize = backend.devSet().template newDataSet<uint64_t>();
-    for (int32_t c = 0; c < stencilNghSize.cardinality(); ++c) {
-        stencilNghSize[c] = stencil.neighbours().size();
-    }
-    mData->mStencilNghIndex = backend.devSet().template newMemSet<nghIdx_t>({Neon::DataUse::IO_COMPUTE},
+    auto stencilNghSize = backend.devSet().template newDataSet<uint64_t>(stencil.neighbours().size());
+    mData->mStencilNghIndex = backend.devSet().template newMemSet<nghIdx_t>(Neon::DataUse::IO_COMPUTE,
                                                                             1,
                                                                             memOptionsAoS,
                                                                             stencilNghSize);
 
     for (int32_t c = 0; c < mData->mStencilNghIndex.cardinality(); ++c) {
         SetIdx devID(c);
-        for (uint64_t s = 0; s < stencil.neighbours().size(); ++s) {
+        for (int64_t s = 0; s < int64_t(stencil.neighbours().size()); ++s) {
             mData->mStencilNghIndex.eRef(c, s).x = static_cast<nghIdx_t::Integer>(stencil.neighbours()[s].x);
             mData->mStencilNghIndex.eRef(c, s).y = static_cast<nghIdx_t::Integer>(stencil.neighbours()[s].y);
             mData->mStencilNghIndex.eRef(c, s).z = static_cast<nghIdx_t::Integer>(stencil.neighbours()[s].z);
         }
     }
+
+    //-----------------------------------------------------------------------
 
 
     // block bitmask
