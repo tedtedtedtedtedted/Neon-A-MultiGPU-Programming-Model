@@ -158,6 +158,7 @@ bGrid::bGrid(const Neon::Backend&         backend,
         }
     }
 
+    // Up to here we have defined the partitioning
     //-----------------------------------------------------------------------
 
 
@@ -169,24 +170,25 @@ bGrid::bGrid(const Neon::Backend&         backend,
                                                    Cell::sMaskSize);
     }
 
-    mData->mActiveMask = backend.devSet().template newMemSet<uint32_t>({Neon::DataUse::IO_COMPUTE},
+    mData->mActiveMask = backend.devSet().template newMemSet<uint32_t>(Neon::DataUse::IO_COMPUTE,
                                                                        1,
                                                                        memOptionsAoS,
                                                                        mData->mActiveMaskSize);
 
 
     // init bitmask to zero
-    for (int32_t c = 0; c < mData->mActiveMask.cardinality(); ++c) {
-        SetIdx devID(c);
-        for (size_t i = 0; i < mData->mActiveMaskSize[c]; ++i) {
-            mData->mActiveMask.eRef(devID, i) = 0;
-        }
-    }
+    mData->mActiveMaskSize.forEachSetIdx(
+        [&](const Neon::SetIdx& setIdx,
+            uint64_t&           size) {
+            for (size_t i = 0; i < size; ++i) {
+                mData->mActiveMask.eRef(setIdx, int64_t(i)) = 0;
+            }
+        });
 
 
     // Neighbor blocks
-    mData->mNeighbourBlocks = backend.devSet().template newMemSet<uint32_t>({Neon::DataUse::IO_COMPUTE},
-                                                                            26,
+    mData->mNeighbourBlocks = backend.devSet().template newMemSet<uint32_t>(Neon::DataUse::IO_COMPUTE,
+                                                                            3 * 3 * 3 - 1,
                                                                             memOptionsAoS,
                                                                             mData->mNumBlocks);
     // init neighbor blocks to invalid block id
