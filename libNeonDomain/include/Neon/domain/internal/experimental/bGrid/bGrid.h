@@ -6,12 +6,14 @@
 
 #include "Neon/domain/interface/GridBaseTemplate.h"
 
+#include "Neon/domain/internal/experimental/bGrid/SpanClassifier.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanSparseTopology.h"
+
 #include "Neon/domain/internal/experimental/bGrid/bCell.h"
 #include "Neon/domain/internal/experimental/bGrid/bField.h"
 #include "Neon/domain/internal/experimental/bGrid/bPartition.h"
 #include "Neon/domain/internal/experimental/bGrid/bPartitionIndexSpace.h"
-#include "Neon/domain/internal/experimental/bGrid/Classifier.h"
-#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
 
 #include "Neon/domain/patterns/PatternScalar.h"
 

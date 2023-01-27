@@ -21,51 +21,41 @@ namespace Neon::domain::internal::experimental::bGrid {
 template <typename T, int C>
 class bField;
 
-class SpanPartitioner
+class SpanSparseTopology
 {
    public:
-    SpanPartitioner() = default;
+    SpanSparseTopology() = default;
 
     template <typename ActiveCellLambda,
               typename Block3dIdxToBlockOrigin,
               typename GetVoxelAbsolute3DIdx>
-    SpanPartitioner(const Neon::Backend&           backend,
-                    const ActiveCellLambda&        activeCellLambda,
-                    const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
-                    const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,
-                    const Neon::int32_3d&          block3DSpan,
-                    const int&                     blockSize,
-                    const Neon::int32_3d&          domainSize,
-                    const int&                     discreteVoxelSpacing);
+    SpanSparseTopology(const Neon::Backend&           backend,
+                       const ActiveCellLambda&        activeCellLambda,
+                       const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
+                       const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,
+                       const Neon::int32_3d&          block3DSpan,
+                       const int&                     blockSize,
+                       const Neon::int32_3d&          domainSize,
+                       const int&                     discreteVoxelSpacing);
 
-    auto getNumBlockPerPartition() const
-        -> const Neon::set::DataSet<int64_t>&;
 
-    auto getFirstZSliceIdx() const
-        -> const Neon::set::DataSet<int32_t>&;
-
-    auto getLastZSliceIdx() const
-        -> const Neon::set::DataSet<int32_t>&;
 
    private:
-    Neon::set::DataSet<int32_t> mZFirstIdx;
-    Neon::set::DataSet<int32_t> mZLastIdx;
-    Neon::set::DataSet<int64_t> mNumBlocks;
-
+    std::vector<int> mNumBlockProjectedToZ;
     int64_t mDomainBlocksCount;
 };
 
 template <typename ActiveCellLambda,
           typename Block3dIdxToBlockOrigin,
           typename GetVoxelAbsolute3DIdx>
-SpanPartitioner::SpanPartitioner(const Neon::Backend&           backend,
-                                 const ActiveCellLambda&        activeCellLambda,
-                                 const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
-                                 const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,
-                                 const Neon::int32_3d&          block3DSpan,
-                                 const int&                     blockSize,
-                                 const Neon::int32_3d&          domainSize,
-                                 const int&                     discreteVoxelSpacing)
+SpanPartitioner::SpanSparseTopology(const Neon::Backend&           backend,
+                                    const ActiveCellLambda&        activeCellLambda,
+                                    const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
+                                    const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,
+                                    const Neon::int32_3d&          block3DSpan,
+                                    const int&                     blockSize,
+                                    const Neon::int32_3d&          domainSize,
+                                    const int&                     discreteVoxelSpacing)
 {
     // Computing nBlockProjectedToZ and totalBlocks
     mDomainBlocksCount = 0;
