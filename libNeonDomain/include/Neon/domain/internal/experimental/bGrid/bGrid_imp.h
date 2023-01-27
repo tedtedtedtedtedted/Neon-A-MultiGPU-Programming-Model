@@ -31,21 +31,12 @@ bGrid::bGrid(const Neon::Backend&         backend,
              const double_3d&             origin)
 {
 
-
-    if (backend.devSet().setCardinality() > 1) {
-        NeonException exp("bGrid");
-        exp << "bGrid only supported on a single GPU";
-        NEON_THROW(exp);
-    }
-
     mData = std::make_shared<Data>();
     mData->blockSize = blockSize;
     mData->discreteVoxelSpacing = discreteVoxelSpacing;
 
     mData->mMapBlockOriginTo1DIdx = Neon::domain::tool::PointHashTable<int32_t, uint32_t>(domainSize * discreteVoxelSpacing);
 
-    mData->mNumBlocks = backend.devSet().template newDataSet<uint64_t>();
-    mData->mNumActiveVoxel = backend.devSet().template newDataSet<uint64_t>();
 
     Neon::int32_3d block3DSpan(NEON_DIVIDE_UP(domainSize.x, blockSize),
                                NEON_DIVIDE_UP(domainSize.y, blockSize),
@@ -68,65 +59,15 @@ bGrid::bGrid(const Neon::Backend&         backend,
         return id;
     };
 
-    // Computing nBlockProjectedToZ and totalBlocks
-    uint64_t numBlocks;
-    for (int bz = 0; bz < block3DSpan.z; bz++) {
-        nBlockProjectedToZ[bz] = 0;
+    mData->mSpanPartitioner(backend,
+                            activeCellLambda,
+                            block3dIdxToBlockOrigin,
+                            getVoxelAbsolute3DIdx,
+                            block3DSpan,
+                            blockSize,
+                            domainSize,
+                            discreteVoxelSpacing);
 
-        for (int by = 0; by < block3DSpan.y; by++) {
-            for (int bx = 0; bx < block3DSpan.x; bx++) {
-
-                int numVoxelsInBlock = 0;
-
-                Neon::int32_3d blockOrigin = block3dIdxToBlockOrigin({bx, by, bz});
-                bool           doBreak = false;
-                for (int z = 0; (z < blockSize && !doBreak); z++) {
-                    for (int y = 0; (y < blockSize && !doBreak); y++) {
-                        for (int x = 0; (x < blockSize && !doBreak); x++) {
-
-                            const Neon::int32_3d id = getVoxelAbsolute3DIdx(blockOrigin, {x, y, z});
-                            if (id < domainSize * discreteVoxelSpacing) {
-                                if (activeCellLambda(id)) {
-                                    doBreak = true;
-                                    nBlockProjectedToZ[bz]++;
-                                    numBlocks++;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    const int64_t avgBlocksPerPartition = NEON_DIVIDE_UP(numBlocks, backend.devSet().setCardinality());
-    auto const    zSliceBlockDistribution = backend.devSet().newDataSet<ZSliceRanges>([](Neon::SetIdx,
-                                                                                      ZSliceRanges& v) {
-        v.nBlocks = 0;
-        v.zFirst = 0;
-        v.zLast = 0;
-    });
-
-    backend.devSet().forEachSetIdxSeq([&](Neon::SetIdx const& idx) {
-        zSliceBlockDistribution[idx].zFirst = [&] {
-            if (idx.idx() == 0)
-                return 0;
-            return zSliceBlockDistribution[idx].zLast;
-        }();
-
-        for (int i = zSliceBlockDistribution[idx].zFirst + 1; i < block3DSpan.z; i++) {
-            zSliceBlockDistribution[idx].nBlocks += nBlockProjectedToZ[i];
-            zSliceBlockDistribution[idx].zLast = i;
-
-            if (zSliceBlockDistribution[idx].nBlocks >= avgBlocksPerPartition) {
-                break;
-            }
-        }
-    });
-
-    mData->mNumBlocks.forEach([](const Neon::SetIdx& setIdx, uint64_t& val) {
-        val = zSliceBlockDistribution[setIdx].nBlocks;
-    });
 
 
     Neon::MemoryOptions memOptionsAoS(Neon::DeviceType::CPU,

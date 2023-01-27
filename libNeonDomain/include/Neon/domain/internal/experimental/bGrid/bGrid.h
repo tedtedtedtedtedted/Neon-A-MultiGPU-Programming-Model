@@ -10,6 +10,8 @@
 #include "Neon/domain/internal/experimental/bGrid/bField.h"
 #include "Neon/domain/internal/experimental/bGrid/bPartition.h"
 #include "Neon/domain/internal/experimental/bGrid/bPartitionIndexSpace.h"
+#include "Neon/domain/internal/experimental/bGrid/Classifier.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
 
 #include "Neon/domain/patterns/PatternScalar.h"
 
@@ -143,8 +145,7 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
         int blockSize = 0;
         int discreteVoxelSpacing = 0;
 
-        // number of active voxels in each block
-        Neon::set::DataSet<uint64_t> mNumActiveVoxel;
+        SpanPartitioner mSpanPartitioner;
 
         // block origin coordinates
         Neon::set::MemSet_t<Neon::int32_3d> mOrigin;
