@@ -42,7 +42,7 @@ bGrid::bGrid(const Neon::Backend&         backend,
     mData->blockSize = blockSize;
     mData->discreteVoxelSpacing = discreteVoxelSpacing;
 
-    mData->mBlockOriginTo1D = Neon::domain::tool::PointHashTable<int32_t, uint32_t>(domainSize * discreteVoxelSpacing);
+    mData->mMapBlockOriginTo1DIdx = Neon::domain::tool::PointHashTable<int32_t, uint32_t>(domainSize * discreteVoxelSpacing);
 
     mData->mNumBlocks = backend.devSet().template newDataSet<uint64_t>();
     mData->mNumActiveVoxel = backend.devSet().template newDataSet<uint64_t>();
@@ -158,9 +158,6 @@ bGrid::bGrid(const Neon::Backend&         backend,
         }
     }
 
-    // Up to here we have defined the partitioning
-    //-----------------------------------------------------------------------
-
 
     // block bitmask
     mData->mActiveMaskSize = backend.devSet().template newDataSet<uint64_t>();
@@ -192,19 +189,20 @@ bGrid::bGrid(const Neon::Backend&         backend,
                                                                             memOptionsAoS,
                                                                             mData->mNumBlocks);
     // init neighbor blocks to invalid block id
-    for (int32_t c = 0; c < mData->mNeighbourBlocks.cardinality(); ++c) {
-        // TODO
-        SetIdx devID(c);
-        for (uint64_t i = 0; i < mData->mNumBlocks[c]; ++i) {
-            for (int n = 0; n < 26; ++n) {
-                mData->mNeighbourBlocks.eRef(devID, i, n) = std::numeric_limits<uint32_t>::max();
+    mData->mNumBlocks.forEachSetIdx(
+        [&](const Neon::SetIdx& setIdx, uint64_t& mNumBlocks) {
+            for (uint64_t i = 0; i < mNumBlocks; ++i) {
+                for (int n = 0; n < 26; ++n) {
+                    mData->mNeighbourBlocks.eRef(setIdx, int64_t(i), n) = std::numeric_limits<uint32_t>::max();
+                }
             }
-        }
-    }
+        });
 
+    // TODO -
+    //-----------------------------------------------------------------------
 
     // loop over active blocks to populate the block origins, neighbors, and bitmask
-    mData->mBlockOriginTo1D.forEach([&](const Neon::int32_3d blockOrigin, const uint32_t blockIdx) {
+    mData->mMapBlockOriginTo1DIdx.forEach([&](const Neon::int32_3d blockOrigin, const uint32_t blockIdx) {
         // TODO need to figure out which device owns this block
         SetIdx devID(0);
 
@@ -249,7 +247,7 @@ bGrid::bGrid(const Neon::Backend&         backend,
                     neighbourBlockOrigin.y = j * blockSize * discreteVoxelSpacing + blockOrigin.y;
                     neighbourBlockOrigin.z = k * blockSize * discreteVoxelSpacing + blockOrigin.z;
 
-                    auto neighbour_it = mData->mBlockOriginTo1D.getMetadata(neighbourBlockOrigin);
+                    auto neighbour_it = mData->mMapBlockOriginTo1DIdx.getMetadata(neighbourBlockOrigin);
 
                     if (neighbour_it) {
                         int16_3d block_offset(i, j, k);

@@ -170,7 +170,7 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
         Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace> mPartitionIndexSpace;
 
         // Store the block origin as a key and its 1d index as value
-        Neon::domain::tool::PointHashTable<int32_t, uint32_t> mBlockOriginTo1D;
+        Neon::domain::tool::PointHashTable<int32_t, uint32_t> mMapBlockOriginTo1DIdx;
 
         // Store the block ID as a key and its 1d index as value
         Neon::domain::tool::PointHashTable<int32_t, uint32_t> mBlock3DIdTo1D;
