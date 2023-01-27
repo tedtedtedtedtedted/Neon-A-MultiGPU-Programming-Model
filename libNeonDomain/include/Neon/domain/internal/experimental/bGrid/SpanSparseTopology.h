@@ -42,13 +42,14 @@ class SpanSparseTopology
 
    private:
     std::vector<int> mNumBlockProjectedToZ;
+    std::vector<Neon::int32_3d> mBcBlocks;
     int64_t mDomainBlocksCount;
 };
 
 template <typename ActiveCellLambda,
           typename Block3dIdxToBlockOrigin,
           typename GetVoxelAbsolute3DIdx>
-SpanPartitioner::SpanSparseTopology(const Neon::Backend&           backend,
+SpanSparseTopology::SpanSparseTopology(const Neon::Backend&           backend,
                                     const ActiveCellLambda&        activeCellLambda,
                                     const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
                                     const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,

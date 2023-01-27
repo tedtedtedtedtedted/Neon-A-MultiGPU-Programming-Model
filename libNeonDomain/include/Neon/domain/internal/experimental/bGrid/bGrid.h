@@ -8,7 +8,6 @@
 
 #include "Neon/domain/internal/experimental/bGrid/SpanClassifier.h"
 #include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
-#include "Neon/domain/internal/experimental/bGrid/SpanSparseTopology.h"
 
 #include "Neon/domain/internal/experimental/bGrid/bCell.h"
 #include "Neon/domain/internal/experimental/bGrid/bField.h"

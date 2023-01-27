@@ -91,6 +91,7 @@ SpanClassifier::SpanClassifier(const Neon::Backend&           backend,
             for (int z = beginZ + 1; z < lastZ; z++) {
                 for (int y = 0; y < block3DSpan.y; y++) {
                     for (int x = 0; x < block3DSpan.x; x++) {
+                        Neon::int32_3d idx(x,y,z);
 
                     }
                 }
