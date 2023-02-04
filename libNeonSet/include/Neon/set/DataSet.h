@@ -219,10 +219,10 @@ struct DataSet
         return newDataSet;
     }
 
-    auto forEachSetIdx(std::function<void(const Neon::SetIdx&, T_ta&)> fun)
+    auto forEachSetIdx(std::function<void(Neon::SetIdx const&, T_ta&)> fun)
         -> void
     {
-        for(int i=0; i < m_data->size(); i++){
+        for (int i = 0; i < static_cast<int>(m_data->size()); i++) {
             fun(i, m_data->operator[](i));
         }
     }

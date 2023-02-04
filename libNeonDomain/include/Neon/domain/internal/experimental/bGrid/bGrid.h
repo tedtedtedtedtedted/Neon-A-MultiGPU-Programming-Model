@@ -46,24 +46,30 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
     /**
      * Constructor for the vanilla block data structure with depth of 1
      */
-    template <typename ActiveCellLambda>
-    bGrid(const Neon::Backend&         backend,
-          const Neon::int32_3d&        domainSize,
-          const ActiveCellLambda&      activeCellLambda,
-          const Neon::domain::Stencil& stencil,
-          const double_3d&             spacingData = double_3d(1, 1, 1),
-          const double_3d&             origin = double_3d(0, 0, 0));
+    template <typename ActiveCellLambda,
+              typename BcLambda>
+    bGrid(
+        const Neon::Backend&         backend,
+        const Neon::int32_3d&        domainSize,
+        const ActiveCellLambda&      activeCellLambda,
+        const Neon::domain::Stencil& stencil,
+        const double_3d&             spacingData = double_3d(1, 1, 1),
+        const double_3d&             origin = double_3d(0, 0, 0),
+        const BcLambda&              bcLambda = [](Neon::int32_3d idx) { return false; });
 
 
-    template <typename ActiveCellLambda>
-    bGrid(const Neon::Backend&         backend,
-          const Neon::int32_3d&        domainSize,
-          const ActiveCellLambda&      activeCellLambda,
-          const Neon::domain::Stencil& stencil,
-          const int                    blockSize,
-          const int                    discreteVoxelSpacing,
-          const double_3d&             spacingData = double_3d(1, 1, 1),
-          const double_3d&             origin = double_3d(0, 0, 0));
+    template <typename ActiveCellLambda,
+              typename BcLambda>
+    bGrid(
+        const Neon::Backend&         backend,
+        const Neon::int32_3d&        domainSize,
+        const ActiveCellLambda&      activeCellLambda,
+        const Neon::domain::Stencil& stencil,
+        const int                    blockSize,
+        const int                    discreteVoxelSpacing,
+        const double_3d&             spacingData = double_3d(1, 1, 1),
+        const double_3d&             origin = double_3d(0, 0, 0),
+        const BcLambda&              bcLambda = [](Neon::int32_3d idx) { return false ;});
 
 
     auto getProperties(const Neon::index_3d& idx) const

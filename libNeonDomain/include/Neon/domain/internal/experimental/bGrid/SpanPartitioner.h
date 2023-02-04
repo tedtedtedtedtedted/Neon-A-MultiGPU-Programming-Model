@@ -21,6 +21,10 @@ namespace Neon::domain::internal::experimental::bGrid {
 template <typename T, int C>
 class bField;
 
+/**
+ * Defines the partition of the domain by slicing along the z axe.
+ * Granularity of the slicing is a block.
+ */
 class SpanPartitioner
 {
    public:
