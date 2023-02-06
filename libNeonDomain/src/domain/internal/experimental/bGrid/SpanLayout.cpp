@@ -1,12 +1,15 @@
-#include "Neon/domain/internal/experimental/bGrid/PartitionBounds.h"
+#include "Neon/domain/internal/experimental/bGrid/PartitionSpan.h"
 #include "Neon/core/core.h"
 
 namespace Neon::domain::internal::experimental::bGrid::details {
 
-PartitionBounds::PartitionBounds(Neon::Backend const&  backend,
-                                 SpanClassifier const& spanClassifier)
+PartitionSpan::PartitionSpan(Neon::Backend const&   backend,
+                             SpanPartitioner const& spanPartitioner,
+                             SpanClassifier const&  spanClassifier)
 {
+    mSpanPartitioner = &spanPartitioner;
     mSpanClassifierPtr = &spanClassifier;
+
     mCountXpu = backend.devSet().setCardinality();
     mDataByPartition = backend.devSet().newDataSet<InfoByPartition>();
     // Setting up internal and boudary indexes
@@ -52,10 +55,11 @@ PartitionBounds::PartitionBounds(Neon::Backend const&  backend,
     });
 }
 
-auto PartitionBounds::getBoundsInternal(SetIdx setIdx)
-    const -> PartitionBounds::Bounds
+auto PartitionSpan::getBoundsInternal(
+    SetIdx setIdx)
+    const -> PartitionSpan::Bounds
 {
-    PartitionBounds::Bounds result{};
+    PartitionSpan::Bounds result{};
     result.first = mDataByPartition[setIdx].getInternal().operator()(ByDomain::bulk).first;
     result.count = 0;
     for (auto const& byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -64,19 +68,23 @@ auto PartitionBounds::getBoundsInternal(SetIdx setIdx)
     return result;
 }
 
-auto PartitionBounds::getBoundsInternal(SetIdx setIdx, ByDomain byDomain)
-    const -> PartitionBounds::Bounds
+auto PartitionSpan::getBoundsInternal(
+    SetIdx   setIdx,
+    ByDomain byDomain)
+    const -> PartitionSpan::Bounds
 {
-    PartitionBounds::Bounds result{};
+    PartitionSpan::Bounds result{};
     result.first = mDataByPartition[setIdx].getInternal().operator()(byDomain).first;
     result.count = mDataByPartition[setIdx].getInternal().operator()(byDomain).count;
     return result;
 }
 
-auto PartitionBounds::getBoundsBoundary(SetIdx setIdx, ByDirection byDirection)
-    const -> PartitionBounds::Bounds
+auto PartitionSpan::getBoundsBoundary(
+    SetIdx      setIdx,
+    ByDirection byDirection)
+    const -> PartitionSpan::Bounds
 {
-    PartitionBounds::Bounds result{};
+    PartitionSpan::Bounds result{};
     result.first = mDataByPartition[setIdx].getBoundary(byDirection).operator()(ByDomain::bulk).first;
     result.count = 0;
     for (auto const& byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -85,19 +93,22 @@ auto PartitionBounds::getBoundsBoundary(SetIdx setIdx, ByDirection byDirection)
     return result;
 }
 
-auto PartitionBounds::getBoundsBoundary(SetIdx setIdx, ByDirection byDirection, ByDomain byDomain)
-    const -> PartitionBounds::Bounds
+auto PartitionSpan::getBoundsBoundary(
+    SetIdx      setIdx,
+    ByDirection byDirection,
+    ByDomain    byDomain)
+    const -> PartitionSpan::Bounds
 {
-    PartitionBounds::Bounds result{};
+    PartitionSpan::Bounds result{};
     result.first = mDataByPartition[setIdx].getBoundary(byDirection).operator()(byDomain).first;
     result.count = mDataByPartition[setIdx].getBoundary(byDirection).operator()(byDomain).count;
     return result;
 }
 
-auto PartitionBounds::getGhostBoundary(SetIdx setIdx, ByDirection byDirection)
-    const -> PartitionBounds::Bounds
+auto PartitionSpan::getGhostBoundary(SetIdx setIdx, ByDirection byDirection)
+    const -> PartitionSpan::Bounds
 {
-    PartitionBounds::Bounds result{};
+    PartitionSpan::Bounds result{};
     result.first = mDataByPartition[setIdx].getGhost(byDirection).operator()(ByDomain::bulk).first;
     result.count = 0;
     for (auto const& byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -106,22 +117,27 @@ auto PartitionBounds::getGhostBoundary(SetIdx setIdx, ByDirection byDirection)
     return result;
 }
 
-auto PartitionBounds::getGhostBoundary(SetIdx setIdx, ByDirection byDirection, ByDomain byDomain)
-    const -> PartitionBounds::Bounds
+auto PartitionSpan::getGhostBoundary(
+    SetIdx      setIdx,
+    ByDirection byDirection,
+    ByDomain    byDomain)
+    const -> PartitionSpan::Bounds
 {
-    PartitionBounds::Bounds result{};
+    PartitionSpan::Bounds result{};
     result.first = mDataByPartition[setIdx].getGhost(byDirection).operator()(byDomain).first;
     result.count = mDataByPartition[setIdx].getGhost(byDirection).operator()(byDomain).count;
     return result;
 }
 
-auto PartitionBounds::getGhostTarget(SetIdx setIdx, ByDirection byDirection)
-    const -> PartitionBounds::GhostTarget
+auto PartitionSpan::getGhostTarget(SetIdx setIdx, ByDirection byDirection)
+    const -> PartitionSpan::GhostTarget
 {
     return mDataByPartition[setIdx].getGhost(byDirection).getGhost();
 }
 
-auto PartitionBounds::getLocalPointOffset(SetIdx setIdx, const int32_3d& point) const -> int32_t
+auto PartitionSpan::getLocalPointOffset(
+    SetIdx          setIdx,
+    const int32_3d& point) const -> int32_t
 {
     auto findings = getPossiblyLocalPointOffset(setIdx, point);
     if (std::get<0>(findings)) {
@@ -135,7 +151,9 @@ auto PartitionBounds::getLocalPointOffset(SetIdx setIdx, const int32_3d& point) 
 }
 
 
-auto PartitionBounds::getPossiblyLocalPointOffset(SetIdx setIdx, const int32_3d& point)
+auto PartitionSpan::getPossiblyLocalPointOffset(
+    SetIdx          setIdx,
+    const int32_3d& point)
     const -> std::tuple<bool, int32_t, ByPartition, ByDirection, ByDomain>
 {
     for (auto byPartition : {ByPartition::internal, ByPartition::boundary}) {
@@ -158,10 +176,11 @@ auto PartitionBounds::getPossiblyLocalPointOffset(SetIdx setIdx, const int32_3d&
     }
 }
 
-auto PartitionBounds::getClassificationOffset(Neon::SetIdx setIdx,
-                                              ByPartition  byPartition,
-                                              ByDirection  byDirection,
-                                              ByDomain     byDomain)
+auto PartitionSpan::getClassificationOffset(
+    Neon::SetIdx setIdx,
+    ByPartition  byPartition,
+    ByDirection  byDirection,
+    ByDomain     byDomain)
     const -> int32_t
 {
     if (byPartition == ByPartition::internal) {
@@ -170,9 +189,21 @@ auto PartitionBounds::getClassificationOffset(Neon::SetIdx setIdx,
     return this->getBoundsBoundary(setIdx, byDirection, byDomain).first;
 }
 
-auto PartitionBounds::getNeighbourOfInternalPoint(SetIdx          setIdx,
-                                                  const int32_3d& point,
-                                                  const int32_3d& nghOffset)
+auto PartitionSpan::getNeighbourOfInternalPoint(
+    SetIdx          setIdx,
+    const int32_3d& point,
+    const int32_3d& nghOffset)
+    const -> int32_t
+{
+    // Neighbours of internal points can be internal or boundary
+    auto nghPoint = point + nghOffset;
+    return getLocalPointOffset(setIdx, nghPoint);
+}
+
+auto PartitionSpan::getNeighbourOfBoundaryPoint(
+    SetIdx          setIdx,
+    const int32_3d& point,
+    const int32_3d& nghOffset)
     const -> int32_t
 {
     // Neighbours of internal points can be internal or boundary
@@ -193,13 +224,83 @@ auto PartitionBounds::getNeighbourOfInternalPoint(SetIdx          setIdx,
     findings = getPossiblyLocalPointOffset(nghSetIdx, nghPoint);
     if (std::get<0>(findings)) {
         // Ghost direction is the opposite w.r.t. the neighbour partition direction
-        ByDirection ghostByDirection = nghOffset.z > 0 ? ByDirection::down : ByDirection::up;
+        ByDirection ghostByDirection = nghOffset.z > 0
+                                           ? ByDirection::down
+                                           : ByDirection::up;
         ByDomain    ghostByDomain = std::get<4>(findings);
 
-        Bounds ghostBounds = getGhostBoundary(setIdx, ghostByDirection, ghostByDomain);
+        Bounds ghostBounds = getGhostBoundary(setIdx,
+                                              ghostByDirection,
+                                              ghostByDomain);
+
         return std::get<1>(findings) + ghostBounds.first;
     }
     NEON_THROW_UNSUPPORTED_OPERATION("Inconsistent data or query");
+}
+
+auto PartitionSpan::allocateBlockOriginMemSet(
+    Neon::Backend const& backend,
+    int                  stream)
+    const -> Neon::set::MemSet_t<Neon::int32_3d>
+{
+    Neon::MemoryOptions memOptionsAoS(
+        Neon::DeviceType::CPU,
+        Neon::Allocator::MALLOC,
+        Neon::DeviceType::CUDA,
+        backend.devType() == Neon::DeviceType::CUDA
+            ? Neon::Allocator::CUDA_MEM_DEVICE
+            : Neon::Allocator::NULL_MEM,
+        Neon::MemoryLayout::arrayOfStructs);
+
+    // Multi-XPU vector of Block origins (O.x,O.y,O.z)
+    auto originsMemSet = backend.devSet().template newMemSet<Neon::int32_3d>(
+        Neon::DataUse::IO_COMPUTE,
+        1,
+        memOptionsAoS,
+        mSpanPartitioner->getNumBlockPerPartition().newType<uint64_t>());
+
+    backend.devSet().forEachSetIdxSeq(
+        [&](Neon::SetIdx const& setIdx) {
+            for (auto byPartition : {ByPartition::internal}) {
+                const auto byDirection = ByDirection::up;
+                for (auto byDomain : {ByDomain::bulk, ByDomain::bc}) {
+                    auto const& mapperVec = mSpanClassifierPtr->getMapper1Dto3D(
+                        setIdx,
+                        byPartition,
+                        byDirection,
+                        byDomain);
+
+                    auto const start = this->getBoundsInternal(setIdx, byDomain).first;
+                    for (uint64_t j = 0; j < mapperVec.size(); j++) {
+                        auto const& point3d = mapperVec[j];
+                        originsMemSet.eRef(setIdx, j, 0) = point3d;
+                    }
+                }
+            }
+
+            for (auto byPartition : {ByPartition::boundary}) {
+                for (auto byDirection : {ByDirection::up, ByDirection::down}) {
+
+                    for (auto byDomain : {ByDomain::bulk, ByDomain::bc}) {
+                        auto const& mapperVec = mSpanClassifierPtr->getMapper1Dto3D(
+                            setIdx,
+                            byPartition,
+                            byDirection,
+                            byDomain);
+
+                        auto const start = this->getBoundsBoundary(setIdx, byDirection, byDomain).first;
+                        for (uint64_t j = 0; j < mapperVec.size(); j++) {
+                            auto const& point3d = mapperVec[j];
+                            originsMemSet.eRef(setIdx, j, 0) = point3d;
+                        }
+                    }
+                }
+            }
+        });
+
+    originsMemSet.updateCompute(backend, stream);
+
+    return originsMemSet;
 }
 
 

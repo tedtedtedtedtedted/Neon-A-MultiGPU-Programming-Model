@@ -5,8 +5,9 @@
 namespace Neon::domain::internal::experimental::bGrid::details {
 
 
-class PartitionBounds
+class PartitionSpan
 {
+   public:
     struct Bounds
     {
         int first;
@@ -22,10 +23,11 @@ class PartitionBounds
     // | Bulk | Bc | Bulk | Bc | Bulk | Bc  | Bulk | Bc    | Bulk | Bc    |
     // |           |           |            | Ghost setIdx | Ghost setIdx |
     // -------------------------------------
-    PartitionBounds() = default;
+    PartitionSpan() = default;
 
-    PartitionBounds(Neon::Backend const&  backend,
-                    SpanClassifier const& span);
+    PartitionSpan(Neon::Backend const&   backend,
+                  SpanPartitioner const& spanPartitioner,
+                  SpanClassifier const&  spanClassifier);
 
     auto getBoundsInternal(SetIdx) const -> Bounds;
     auto getBoundsInternal(SetIdx, ByDomain) const -> Bounds;
@@ -46,15 +48,17 @@ class PartitionBounds
 
     auto getNeighbourOfInternalPoint(SetIdx                setIdx,
                                      Neon::int32_3d const& point,
-                                     Neon::int32_3d const& offset) const
-        -> int32_t;
+                                     Neon::int32_3d const& offset)
+        const -> int32_t;
 
 
     auto getNeighbourOfBoundaryPoint(SetIdx                setIdx,
                                      Neon::int32_3d const& point,
-                                     Neon::int32_3d const& offset)
-        -> int32_t;
+                                     Neon::int32_3d const& nghOffset)
+        const -> int32_t;
 
+    auto allocateBlockOriginMemSet(Neon::Backend const& backend, int stream)
+        const ->  Neon::set::MemSet_t<Neon::int32_3d>;
 
    private:
     /**
@@ -154,6 +158,7 @@ class PartitionBounds
     Neon::set::DataSet<InfoByPartition> mDataByPartition;
     int                                 mCountXpu;
     SpanClassifier const*               mSpanClassifierPtr;
+    SpanPartitioner const*              mSpanPartitioner;
 };
 
 }  // namespace Neon::domain::internal::experimental::bGrid::details

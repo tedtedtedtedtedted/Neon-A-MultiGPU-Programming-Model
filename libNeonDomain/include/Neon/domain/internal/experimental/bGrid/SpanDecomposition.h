@@ -16,7 +16,7 @@
 #include "Neon/domain/tools/IndexSpaceTable.h"
 #include "Neon/domain/tools/PointHashTable.h"
 
-namespace Neon::domain::internal::experimental::bGrid {
+namespace Neon::domain::internal::experimental::bGrid::details {
 
 template <typename T, int C>
 class bField;

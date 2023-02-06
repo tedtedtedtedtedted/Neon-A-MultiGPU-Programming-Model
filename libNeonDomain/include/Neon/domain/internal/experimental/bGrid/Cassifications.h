@@ -6,7 +6,7 @@
 
 #include "Neon/domain/interface/GridBaseTemplate.h"
 
-#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanDecomposition.h"
 
 #include "Neon/domain/patterns/PatternScalar.h"
 
