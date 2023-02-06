@@ -67,10 +67,16 @@ class SpanClassifier
                                      ByDomain     byDomain) const -> int;
 
    private:
-    auto getMapper1Dto3D(Neon::SetIdx const& setIdx, ByPartition, ByDirection, ByDomain)
+    auto getMapper1Dto3D(Neon::SetIdx const& setIdx,
+                         ByPartition,
+                         ByDirection,
+                         ByDomain)
         -> std::vector<Neon::index_3d>&;
 
-    auto getMapper3Dto1D(Neon::SetIdx const& setIdx, ByPartition, ByDirection, ByDomain)
+    auto getMapper3Dto1D(Neon::SetIdx const& setIdx,
+                         ByPartition,
+                         ByDirection,
+                         ByDomain)
         -> Neon::domain::tool::PointHashTable<int32_t, uint32_t>&;
 
     auto addPoint(Neon::SetIdx const&   setIdx,
