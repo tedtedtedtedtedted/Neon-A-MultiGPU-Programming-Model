@@ -1,11 +1,11 @@
-#include "Neon/domain/internal/experimental/bGrid/PartitionSpan.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanLayout.h"
 #include "Neon/core/core.h"
 
 namespace Neon::domain::internal::experimental::bGrid::details {
 
-PartitionSpan::PartitionSpan(Neon::Backend const&   backend,
-                             SpanPartitioner const& spanPartitioner,
-                             SpanClassifier const&  spanClassifier)
+SpanLayout::SpanLayout(Neon::Backend const&     backend,
+                       SpanDecomposition const& spanPartitioner,
+                       SpanClassifier const&    spanClassifier)
 {
     mSpanPartitioner = &spanPartitioner;
     mSpanClassifierPtr = &spanClassifier;
@@ -55,11 +55,11 @@ PartitionSpan::PartitionSpan(Neon::Backend const&   backend,
     });
 }
 
-auto PartitionSpan::getBoundsInternal(
+auto SpanLayout::getBoundsInternal(
     SetIdx setIdx)
-    const -> PartitionSpan::Bounds
+    const -> SpanLayout::Bounds
 {
-    PartitionSpan::Bounds result{};
+    SpanLayout::Bounds result{};
     result.first = mDataByPartition[setIdx].getInternal().operator()(ByDomain::bulk).first;
     result.count = 0;
     for (auto const& byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -68,23 +68,23 @@ auto PartitionSpan::getBoundsInternal(
     return result;
 }
 
-auto PartitionSpan::getBoundsInternal(
+auto SpanLayout::getBoundsInternal(
     SetIdx   setIdx,
     ByDomain byDomain)
-    const -> PartitionSpan::Bounds
+    const -> SpanLayout::Bounds
 {
-    PartitionSpan::Bounds result{};
+    SpanLayout::Bounds result{};
     result.first = mDataByPartition[setIdx].getInternal().operator()(byDomain).first;
     result.count = mDataByPartition[setIdx].getInternal().operator()(byDomain).count;
     return result;
 }
 
-auto PartitionSpan::getBoundsBoundary(
+auto SpanLayout::getBoundsBoundary(
     SetIdx      setIdx,
     ByDirection byDirection)
-    const -> PartitionSpan::Bounds
+    const -> SpanLayout::Bounds
 {
-    PartitionSpan::Bounds result{};
+    SpanLayout::Bounds result{};
     result.first = mDataByPartition[setIdx].getBoundary(byDirection).operator()(ByDomain::bulk).first;
     result.count = 0;
     for (auto const& byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -93,22 +93,22 @@ auto PartitionSpan::getBoundsBoundary(
     return result;
 }
 
-auto PartitionSpan::getBoundsBoundary(
+auto SpanLayout::getBoundsBoundary(
     SetIdx      setIdx,
     ByDirection byDirection,
     ByDomain    byDomain)
-    const -> PartitionSpan::Bounds
+    const -> SpanLayout::Bounds
 {
-    PartitionSpan::Bounds result{};
+    SpanLayout::Bounds result{};
     result.first = mDataByPartition[setIdx].getBoundary(byDirection).operator()(byDomain).first;
     result.count = mDataByPartition[setIdx].getBoundary(byDirection).operator()(byDomain).count;
     return result;
 }
 
-auto PartitionSpan::getGhostBoundary(SetIdx setIdx, ByDirection byDirection)
-    const -> PartitionSpan::Bounds
+auto SpanLayout::getGhostBoundary(SetIdx setIdx, ByDirection byDirection)
+    const -> SpanLayout::Bounds
 {
-    PartitionSpan::Bounds result{};
+    SpanLayout::Bounds result{};
     result.first = mDataByPartition[setIdx].getGhost(byDirection).operator()(ByDomain::bulk).first;
     result.count = 0;
     for (auto const& byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -117,25 +117,25 @@ auto PartitionSpan::getGhostBoundary(SetIdx setIdx, ByDirection byDirection)
     return result;
 }
 
-auto PartitionSpan::getGhostBoundary(
+auto SpanLayout::getGhostBoundary(
     SetIdx      setIdx,
     ByDirection byDirection,
     ByDomain    byDomain)
-    const -> PartitionSpan::Bounds
+    const -> SpanLayout::Bounds
 {
-    PartitionSpan::Bounds result{};
+    SpanLayout::Bounds result{};
     result.first = mDataByPartition[setIdx].getGhost(byDirection).operator()(byDomain).first;
     result.count = mDataByPartition[setIdx].getGhost(byDirection).operator()(byDomain).count;
     return result;
 }
 
-auto PartitionSpan::getGhostTarget(SetIdx setIdx, ByDirection byDirection)
-    const -> PartitionSpan::GhostTarget
+auto SpanLayout::getGhostTarget(SetIdx setIdx, ByDirection byDirection)
+    const -> SpanLayout::GhostTarget
 {
     return mDataByPartition[setIdx].getGhost(byDirection).getGhost();
 }
 
-auto PartitionSpan::getLocalPointOffset(
+auto SpanLayout::getLocalPointOffset(
     SetIdx          setIdx,
     const int32_3d& point) const -> int32_t
 {
@@ -151,7 +151,7 @@ auto PartitionSpan::getLocalPointOffset(
 }
 
 
-auto PartitionSpan::getPossiblyLocalPointOffset(
+auto SpanLayout::getPossiblyLocalPointOffset(
     SetIdx          setIdx,
     const int32_3d& point)
     const -> std::tuple<bool, int32_t, ByPartition, ByDirection, ByDomain>
@@ -176,7 +176,7 @@ auto PartitionSpan::getPossiblyLocalPointOffset(
     }
 }
 
-auto PartitionSpan::getClassificationOffset(
+auto SpanLayout::getClassificationOffset(
     Neon::SetIdx setIdx,
     ByPartition  byPartition,
     ByDirection  byDirection,
@@ -189,7 +189,7 @@ auto PartitionSpan::getClassificationOffset(
     return this->getBoundsBoundary(setIdx, byDirection, byDomain).first;
 }
 
-auto PartitionSpan::getNeighbourOfInternalPoint(
+auto SpanLayout::getNeighbourOfInternalPoint(
     SetIdx          setIdx,
     const int32_3d& point,
     const int32_3d& nghOffset)
@@ -200,7 +200,7 @@ auto PartitionSpan::getNeighbourOfInternalPoint(
     return getLocalPointOffset(setIdx, nghPoint);
 }
 
-auto PartitionSpan::getNeighbourOfBoundaryPoint(
+auto SpanLayout::getNeighbourOfBoundaryPoint(
     SetIdx          setIdx,
     const int32_3d& point,
     const int32_3d& nghOffset)
@@ -238,7 +238,7 @@ auto PartitionSpan::getNeighbourOfBoundaryPoint(
     NEON_THROW_UNSUPPORTED_OPERATION("Inconsistent data or query");
 }
 
-auto PartitionSpan::allocateBlockOriginMemSet(
+auto SpanLayout::allocateBlockOriginMemSet(
     Neon::Backend const& backend,
     int                  stream)
     const -> Neon::set::MemSet_t<Neon::int32_3d>

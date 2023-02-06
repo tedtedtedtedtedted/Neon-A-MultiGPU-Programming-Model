@@ -6,11 +6,11 @@
 
 #include "Neon/domain/interface/GridBaseTemplate.h"
 
-#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanDecomposition.h"
 
 #include "Neon/domain/patterns/PatternScalar.h"
 
-#include "Classes.h"
+#include "Cassifications.h"
 #include "Neon/domain/tools/IndexSpaceTable.h"
 #include "Neon/domain/tools/PointHashTable.h"
 namespace Neon::domain::internal::experimental::bGrid::details {
@@ -36,7 +36,7 @@ class SpanClassifier
                    const int&                     blockSize,
                    const Neon::int32_3d&          domainSize,
                    const int&                     discreteVoxelSpacing,
-                   const SpanPartitioner&);
+                   const SpanDecomposition&);
 
 
     /**
@@ -197,7 +197,7 @@ SpanClassifier::SpanClassifier(const Neon::Backend&           backend,
                                const int&                     blockSize,
                                const Neon::int32_3d&          domainSize,
                                const int&                     discreteVoxelSpacing,
-                               const SpanPartitioner&         spanPartitioner)
+                               const SpanDecomposition&         spanPartitioner)
 {
     mData = backend.devSet().newDataSet<Leve3_ByPartition>();
 

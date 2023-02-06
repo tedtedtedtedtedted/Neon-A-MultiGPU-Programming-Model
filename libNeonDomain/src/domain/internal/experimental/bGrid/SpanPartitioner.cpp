@@ -1,18 +1,18 @@
-#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanDecomposition.h"
 
-namespace Neon::domain::internal::experimental::bGrid {
+namespace Neon::domain::internal::experimental::bGrid::details {
 
-auto SpanPartitioner::getNumBlockPerPartition() const -> const Neon::set::DataSet<int64_t>&
+auto SpanDecomposition::getNumBlockPerPartition() const -> const Neon::set::DataSet<int64_t>&
 {
     return mNumBlocks;
 }
 
-auto SpanPartitioner::getFirstZSliceIdx() const -> const Neon::set::DataSet<int32_t>&
+auto SpanDecomposition::getFirstZSliceIdx() const -> const Neon::set::DataSet<int32_t>&
 {
     return mZFirstIdx;
 }
 
-auto SpanPartitioner::getLastZSliceIdx() const -> const Neon::set::DataSet<int32_t>&
+auto SpanDecomposition::getLastZSliceIdx() const -> const Neon::set::DataSet<int32_t>&
 {
     return mZLastIdx;
 }

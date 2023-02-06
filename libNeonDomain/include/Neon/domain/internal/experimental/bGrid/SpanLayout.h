@@ -5,7 +5,7 @@
 namespace Neon::domain::internal::experimental::bGrid::details {
 
 
-class PartitionSpan
+class SpanLayout
 {
    public:
     struct Bounds
@@ -23,10 +23,10 @@ class PartitionSpan
     // | Bulk | Bc | Bulk | Bc | Bulk | Bc  | Bulk | Bc    | Bulk | Bc    |
     // |           |           |            | Ghost setIdx | Ghost setIdx |
     // -------------------------------------
-    PartitionSpan() = default;
+    SpanLayout() = default;
 
-    PartitionSpan(Neon::Backend const&   backend,
-                  SpanPartitioner const& spanPartitioner,
+    SpanLayout(Neon::Backend const&   backend,
+               SpanDecomposition const& spanPartitioner,
                   SpanClassifier const&  spanClassifier);
 
     auto getBoundsInternal(SetIdx) const -> Bounds;
@@ -158,7 +158,7 @@ class PartitionSpan
     Neon::set::DataSet<InfoByPartition> mDataByPartition;
     int                                 mCountXpu;
     SpanClassifier const*               mSpanClassifierPtr;
-    SpanPartitioner const*              mSpanPartitioner;
+    SpanDecomposition const*              mSpanPartitioner;
 };
 
 }  // namespace Neon::domain::internal::experimental::bGrid::details

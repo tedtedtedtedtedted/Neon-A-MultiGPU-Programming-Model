@@ -7,7 +7,7 @@
 #include "Neon/domain/interface/GridBaseTemplate.h"
 
 #include "Neon/domain/internal/experimental/bGrid/SpanClassifier.h"
-#include "Neon/domain/internal/experimental/bGrid/SpanPartitioner.h"
+#include "Neon/domain/internal/experimental/bGrid/SpanDecomposition.h"
 
 #include "Neon/domain/internal/experimental/bGrid/bCell.h"
 #include "Neon/domain/internal/experimental/bGrid/bField.h"
@@ -18,6 +18,7 @@
 
 #include "Neon/domain/tools/IndexSpaceTable.h"
 #include "Neon/domain/tools/PointHashTable.h"
+#include "SpanLayout.h"
 
 namespace Neon::domain::internal::experimental::bGrid {
 
@@ -152,14 +153,15 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
         int blockSize = 0;
         int discreteVoxelSpacing = 0;
 
-        SpanPartitioner mSpanPartitioner;
+        details::SpanDecomposition mSpanPartitioner;
+        details::SpanClassifier mSpanClassifier;
+        details::SpanLayout      mPartitionSpan;
 
         // block origin coordinates
-        Neon::set::MemSet_t<Neon::int32_3d> mOrigin;
+        Neon::set::MemSet_t<Neon::int32_3d> mOrigins;
 
         // Stencil neighbor indices
         Neon::set::MemSet_t<nghIdx_t> mStencilNghIndex;
-
 
         Neon::set::DataSet<uint64_t>  mActiveMaskSize;
         Neon::set::MemSet_t<uint32_t> mActiveMask;
@@ -176,15 +178,6 @@ class bGrid : public Neon::domain::interface::GridBaseTemplate<bGrid, bCell>
         // Partition index space
         // It is an std vector for the three type of data views we have
         Neon::domain::tool::IndexSpaceTable<PartitionIndexSpace> mPartitionIndexSpace;
-
-        // Store the block origin as a key and its 1d index as value
-        Neon::domain::tool::PointHashTable<int32_t, uint32_t> mMapBlockOriginTo1DIdx;
-
-        // Store the block ID as a key and its 1d index as value
-        Neon::domain::tool::PointHashTable<int32_t, uint32_t> mBlock3DIdTo1D;
-
-        // number of blocks in each device
-        Neon::set::DataSet<uint64_t> mNumBlocks;
     };
     std::shared_ptr<Data> mData;
 };

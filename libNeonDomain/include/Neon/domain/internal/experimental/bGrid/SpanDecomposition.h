@@ -25,15 +25,15 @@ class bField;
  * Defines the partition of the domain by slicing along the z axe.
  * Granularity of the slicing is a block.
  */
-class SpanPartitioner
+class SpanDecomposition
 {
    public:
-    SpanPartitioner() = default;
+    SpanDecomposition() = default;
 
     template <typename ActiveCellLambda,
               typename Block3dIdxToBlockOrigin,
               typename GetVoxelAbsolute3DIdx>
-    SpanPartitioner(const Neon::Backend&           backend,
+    SpanDecomposition(const Neon::Backend&           backend,
                     const ActiveCellLambda&        activeCellLambda,
                     const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
                     const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,
@@ -62,7 +62,7 @@ class SpanPartitioner
 template <typename ActiveCellLambda,
           typename Block3dIdxToBlockOrigin,
           typename GetVoxelAbsolute3DIdx>
-SpanPartitioner::SpanPartitioner(const Neon::Backend&           backend,
+SpanDecomposition::SpanDecomposition(const Neon::Backend&           backend,
                                  const ActiveCellLambda&        activeCellLambda,
                                  const Block3dIdxToBlockOrigin& block3dIdxToBlockOrigin,
                                  const GetVoxelAbsolute3DIdx&   getVoxelAbsolute3DIdx,
