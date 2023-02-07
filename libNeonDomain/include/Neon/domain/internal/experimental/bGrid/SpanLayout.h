@@ -4,7 +4,6 @@
 
 namespace Neon::domain::internal::experimental::bGrid::details {
 
-
 class SpanLayout
 {
    public:
@@ -25,50 +24,93 @@ class SpanLayout
     // -------------------------------------
     SpanLayout() = default;
 
-    SpanLayout(Neon::Backend const&   backend,
-               SpanDecomposition const& spanPartitioner,
-                  SpanClassifier const&  spanClassifier);
+    SpanLayout(
+        Neon::Backend const&     backend,
+        SpanDecomposition const& spanPartitioner,
+        SpanClassifier const&    spanClassifier);
 
-    auto getBoundsInternal(SetIdx) const -> Bounds;
-    auto getBoundsInternal(SetIdx, ByDomain) const -> Bounds;
+    auto getBoundsInternal(SetIdx)
+        const -> Bounds;
 
-    auto getBoundsBoundary(SetIdx, ByDirection) const -> Bounds;
-    auto getBoundsBoundary(SetIdx, ByDirection, ByDomain) const -> Bounds;
+    auto getBoundsInternal(SetIdx, ByDomain)
+        const -> Bounds;
 
-    auto getGhostBoundary(SetIdx, ByDirection) const -> Bounds;
-    auto getGhostBoundary(SetIdx, ByDirection, ByDomain) const -> Bounds;
-    auto getGhostTarget(SetIdx, ByDirection) const -> GhostTarget;
+    auto getBoundsBoundary(SetIdx, ByDirection)
+        const -> Bounds;
 
-    auto getLocalPointOffset(SetIdx setIdx, Neon::int32_3d const& point)
-        const -> int32_t;
+    auto getBoundsBoundary(
+        SetIdx,
+        ByDirection,
+        ByDomain)
+        const -> Bounds;
 
-    auto getPossiblyLocalPointOffset(SetIdx setIdx, const int32_3d& point)
+    auto getGhostBoundary(
+        SetIdx,
+        ByDirection) const -> Bounds;
+
+    auto getGhostBoundary(
+        SetIdx,
+        ByDirection,
+        ByDomain) const -> Bounds;
+
+    auto getGhostTarget(
+        SetIdx,
+        ByDirection) const -> GhostTarget;
+
+    auto getLocalPointOffset(
+        SetIdx                setIdx,
+        Neon::int32_3d const& point)
+        const -> std::pair<bool, int32_t>;
+
+    auto findPossiblyLocalPointOffset(
+        SetIdx          setIdx,
+        const int32_3d& point)
         const -> std::tuple<bool, int32_t, ByPartition, ByDirection, ByDomain>;
 
+    auto findNeighbourOfInternalPoint(
+        SetIdx                setIdx,
+        const Neon::int32_3d& point,
+        const Neon::int32_3d& offset)
+        const -> std::pair<bool, int32_t>;
 
-    auto getNeighbourOfInternalPoint(SetIdx                setIdx,
-                                     Neon::int32_3d const& point,
-                                     Neon::int32_3d const& offset)
-        const -> int32_t;
 
+    auto findNeighbourOfBoundaryPoint(
+        SetIdx                setIdx,
+        const Neon::int32_3d& point,
+        const Neon::int32_3d& nghOffset)
+        const -> std::pair<bool, int32_t>;
 
-    auto getNeighbourOfBoundaryPoint(SetIdx                setIdx,
-                                     Neon::int32_3d const& point,
-                                     Neon::int32_3d const& nghOffset)
-        const -> int32_t;
+    auto allocateBlockOriginMemSet(
+        Neon::Backend const& backend,
+        int                  stream)
+        const -> Neon::set::MemSet_t<Neon::int32_3d>;
 
-    auto allocateBlockOriginMemSet(Neon::Backend const& backend, int stream)
-        const ->  Neon::set::MemSet_t<Neon::int32_3d>;
+    auto allocateStencilRelativeIndexMap(
+        const Backend&               backend,
+        int                          stream,
+        const Neon::domain::Stencil& stencil)
+        const -> Neon::set::MemSet_t<int8_3d>;
+
+    auto allocateBlockConnectivityMemSet(
+        Neon::Backend const& backend,
+        int                  stream)
+        const -> Neon::set::MemSet_t<uint32_t>;
+
 
    private:
     /**
      * Returns the firs index of the selected partition of the partition logical span
      */
-    auto getClassificationOffset(Neon::SetIdx, ByPartition, ByDirection, ByDomain)
+    auto getClassificationOffset(
+        Neon::SetIdx,
+        ByPartition,
+        ByDirection,
+        ByDomain)
         const -> int32_t;
 
-    auto getTargetGhost(Neon::SetIdx setIdx,
-                        ByDirection  direction) -> GhostTarget
+    auto getTargetGhost(
+        Neon::SetIdx setIdx,
+        ByDirection  direction) -> GhostTarget
     {
         int         offset = direction == ByDirection::up ? 1 : -1;
         int         ngh = (setIdx.idx() + mCountXpu + offset) % mCountXpu;
@@ -158,7 +200,7 @@ class SpanLayout
     Neon::set::DataSet<InfoByPartition> mDataByPartition;
     int                                 mCountXpu;
     SpanClassifier const*               mSpanClassifierPtr;
-    SpanDecomposition const*              mSpanPartitioner;
+    SpanDecomposition const*            mSpanPartitioner;
 };
 
 }  // namespace Neon::domain::internal::experimental::bGrid::details

@@ -106,23 +106,11 @@ bGrid::bGrid(const Neon::Backend&         backend,
     }
 
     {  // Stencil linear/relative index
-        auto stencilNghSize = backend.devSet().template newDataSet<uint64_t>(
-            stencil.neighbours().size());
-
-        mData->mStencilNghIndex = backend.devSet().template newMemSet<nghIdx_t>(
-            Neon::DataUse::IO_COMPUTE,
-            1,
-            memOptionsAoS,
-            stencilNghSize);
-
-        for (int32_t c = 0; c < mData->mStencilNghIndex.cardinality(); ++c) {
-            SetIdx devID(c);
-            for (int64_t s = 0; s < int64_t(stencil.neighbours().size()); ++s) {
-                mData->mStencilNghIndex.eRef(c, s).x = static_cast<nghIdx_t::Integer>(stencil.neighbours()[s].x);
-                mData->mStencilNghIndex.eRef(c, s).y = static_cast<nghIdx_t::Integer>(stencil.neighbours()[s].y);
-                mData->mStencilNghIndex.eRef(c, s).z = static_cast<nghIdx_t::Integer>(stencil.neighbours()[s].z);
-            }
-        }
+        mData->mStencilNghIndex =
+            mData->mPartitionSpan.allocateStencilRelativeIndexMap(
+                backend,
+                Neon::Backend::mainStreamIdx,
+                stencil);
     }
 
     {  // Allocating (mActiveMask) the block bitmask that identify active voxels.
