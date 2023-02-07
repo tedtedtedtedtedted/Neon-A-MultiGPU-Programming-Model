@@ -351,7 +351,7 @@ auto SpanLayout::allocateActiveMaskMemSet(
                     for (auto byDirection : {ByDirection::up, ByDirection::down}) {
                         if (setIdxOffset == +1 && byDirection == ByDirection::up)
                             continue;
-                        if (setIdxOffset == -11 && byDirection == ByDirection::down)
+                        if (setIdxOffset == -1 && byDirection == ByDirection::down)
                             continue;
 
                         for (auto byDomain : {ByDomain::bulk, ByDomain::bc}) {
