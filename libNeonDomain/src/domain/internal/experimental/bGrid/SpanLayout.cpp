@@ -8,6 +8,16 @@ SpanLayout::SpanLayout(Neon::Backend const&     backend,
                        SpanDecomposition const& spanPartitioner,
                        SpanClassifier const&    spanClassifier)
 {
+    mMemOptionsAoS = Neon::MemoryOptions(
+        Neon::DeviceType::CPU,
+        Neon::Allocator::MALLOC,
+        Neon::DeviceType::CUDA,
+        backend.devType() == Neon::DeviceType::CUDA
+            ? Neon::Allocator::CUDA_MEM_DEVICE
+            : Neon::Allocator::NULL_MEM,
+        Neon::MemoryLayout::arrayOfStructs);
+
+
     mSpanPartitioner = &spanPartitioner;
     mSpanClassifierPtr = &spanClassifier;
 
@@ -244,20 +254,11 @@ auto SpanLayout::allocateBlockOriginMemSet(
     int                  stream)
     const -> Neon::set::MemSet_t<Neon::int32_3d>
 {
-    Neon::MemoryOptions memOptionsAoS(
-        Neon::DeviceType::CPU,
-        Neon::Allocator::MALLOC,
-        Neon::DeviceType::CUDA,
-        backend.devType() == Neon::DeviceType::CUDA
-            ? Neon::Allocator::CUDA_MEM_DEVICE
-            : Neon::Allocator::NULL_MEM,
-        Neon::MemoryLayout::arrayOfStructs);
-
     // Multi-XPU vector of Block origins (O.x,O.y,O.z)
     auto originsMemSet = backend.devSet().template newMemSet<Neon::int32_3d>(
         Neon::DataUse::IO_COMPUTE,
         1,
-        memOptionsAoS,
+        mMemOptionsAoS,
         mSpanPartitioner->getNumBlockPerPartition().newType<uint64_t>());
 
     backend.devSet().forEachSetIdxSeq(
@@ -303,19 +304,12 @@ auto SpanLayout::allocateBlockOriginMemSet(
 
     return originsMemSet;
 }
+
 auto SpanLayout::allocateStencilRelativeIndexMap(
     const Backend&               backend,
     int                          stream,
     const Neon::domain::Stencil& stencil) const -> Neon::set::MemSet_t<int8_3d>
 {
-    Neon::MemoryOptions memOptionsAoS(
-        Neon::DeviceType::CPU,
-        Neon::Allocator::MALLOC,
-        Neon::DeviceType::CUDA,
-        backend.devType() == Neon::DeviceType::CUDA
-            ? Neon::Allocator::CUDA_MEM_DEVICE
-            : Neon::Allocator::NULL_MEM,
-        Neon::MemoryLayout::arrayOfStructs);
 
     auto stencilNghSize = backend.devSet().template newDataSet<uint64_t>(
         stencil.neighbours().size());
@@ -323,7 +317,7 @@ auto SpanLayout::allocateStencilRelativeIndexMap(
     Neon::set::MemSet_t<int8_3d> stencilNghIndex = backend.devSet().template newMemSet<int8_3d>(
         Neon::DataUse::IO_COMPUTE,
         1,
-        memOptionsAoS,
+        mMemOptionsAoS,
         stencilNghSize);
 
     for (int32_t c = 0; c < stencilNghIndex.cardinality(); ++c) {
@@ -338,26 +332,18 @@ auto SpanLayout::allocateStencilRelativeIndexMap(
     stencilNghIndex.updateCompute(backend, stream);
 }
 
-auto SpanLayout::allocateBlockConnectivityMemSet(const Backend& backend, int stream) const -> Neon::set::MemSet_t<uint32_t>
+auto SpanLayout::allocateBlockConnectivityMemSet(
+    const Backend& backend,
+    int            stream) const -> Neon::set::MemSet_t<uint32_t>
 {
     auto numBlocks =
         mSpanPartitioner->getNumBlockPerPartition().newType<uint64_t>();
 
-    Neon::MemoryOptions memOptionsAoS(
-        Neon::DeviceType::CPU,
-        Neon::Allocator::MALLOC,
-        Neon::DeviceType::CUDA,
-        backend.devType() == Neon::DeviceType::CUDA
-            ? Neon::Allocator::CUDA_MEM_DEVICE
-            : Neon::Allocator::NULL_MEM,
-        Neon::MemoryLayout::arrayOfStructs);
-
     auto neighbourBlocks = backend.devSet().template newMemSet<uint32_t>(
         Neon::DataUse::IO_COMPUTE,
         3 * 3 * 3 - 1,
-        memOptionsAoS,
+        mMemOptionsAoS,
         mSpanPartitioner->getNumBlockPerPartition().newType<uint64_t>());
-
 
     backend.devSet().forEachSetIdxSeq(
         [&](Neon::SetIdx const& setIdx) {
