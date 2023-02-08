@@ -176,12 +176,13 @@ auto bGrid::getContainer(const std::string& name,
 template <typename T>
 auto bGrid::newPatternScalar() const -> Neon::template PatternScalar<T>
 {
-    // TODO this sets the numBlocks for only Standard dataView.
-    auto pattern = Neon::PatternScalar<T>(getBackend(), Neon::sys::patterns::Engine::CUB);
-    for (SetIdx id = 0; id < mData->mNumBlocks.cardinality(); id++) {
-        pattern.getBlasSet(Neon::DataView::STANDARD).getBlas(id.idx()).setNumBlocks(uint32_t(mData->mNumBlocks[id]));
-    }
-    return pattern;
+//    // TODO this sets the numBlocks for only Standard dataView.
+//    auto pattern = Neon::PatternScalar<T>(getBackend(), Neon::sys::patterns::Engine::CUB);
+//    for (SetIdx id = 0; id < mData->mNumBlocks.cardinality(); id++) {
+//        pattern.getBlasSet(Neon::DataView::STANDARD).getBlas(id.idx()).setNumBlocks(uint32_t(mData->mNumBlocks[id]));
+//    }
+//    return pattern;
+    NEON_DEV_UNDER_CONSTRUCTION("");
 }
 
 

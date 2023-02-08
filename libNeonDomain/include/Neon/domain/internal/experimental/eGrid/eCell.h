@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Neon/core/core.h"
+#include "Neon/domain/internal/experimental/eGrid/eTypes.h"
 
 namespace Neon::domain::internal::experimental::eGrid::details {
 class eCell
@@ -8,70 +9,38 @@ class eCell
    public:
     friend class bPartitionIndexSpace;
 
-    using nghIdx_t = int8_3d;
+    using Span3DIndex = Neon::domain::internal::experimental::eGrid::details::Span3DIndex;
+    using MemIndex = Neon::domain::internal::experimental::eGrid::details::MemIdx;
+    using Ngh3DOffset = Neon::domain::internal::experimental::eGrid::details::Ngh3DOffset;
+    using LogicalIdx = Neon::domain::internal::experimental::eGrid::details::LogicalIdx;
+
+    friend class ePartitionIndexSpace;
+    friend class eGrid;
+
     template <typename T, int C>
-    friend class bPartition;
+    friend class ePartition;
 
     template <typename T, int C>
     friend class eField;
 
-    friend class bPartitionIndexSpace;
-
-    friend class eGrid;
-
-    using Location = int16_3d;
-    using BlockSizeT = int8_t;
     using OuterCell = eCell;
 
-    static constexpr BlockSizeT sBlockSize = 8;
-    static constexpr bool       sUseSwirlIndex = false;
-
-    //We use uint32_t data type to store the block mask and thus the mask size is 32
-    // i.e., each entry in the mask array store the state of 32 voxels
-    // Fixing the mask to 32 also takes care of parring for alignment
-    static constexpr uint32_t sMaskSize = 32;
 
     eCell() = default;
     virtual ~eCell() = default;
 
     NEON_CUDA_HOST_DEVICE inline auto isActive() const -> bool;
 
+    // the local index within the block
+    LogicalIdx mLogicalIdx;
 
-    //the local index within the block
-    Location mLocation;
-    uint32_t mBlockID;
-    bool     mIsActive;
-    int      mBlockSize;
+    NEON_CUDA_HOST_DEVICE inline explicit eCell(LogicalIdx const&  location);
 
-    NEON_CUDA_HOST_DEVICE inline explicit eCell(const Location::Integer& x,
-                                                const Location::Integer& y,
-                                                const Location::Integer& z);
-    NEON_CUDA_HOST_DEVICE inline explicit eCell(const Location& location);
+    NEON_CUDA_HOST_DEVICE inline auto set() -> LogicalIdx&;
 
-    NEON_CUDA_HOST_DEVICE inline auto set() -> Location&;
+    NEON_CUDA_HOST_DEVICE inline auto get() const -> const LogicalIdx&;
 
-    NEON_CUDA_HOST_DEVICE inline auto get() const -> const Location&;
-
-    NEON_CUDA_HOST_DEVICE inline auto getLocal1DID() const -> Location::Integer;
-
-    NEON_CUDA_HOST_DEVICE inline auto getMaskLocalID() const -> int32_t;
-
-    NEON_CUDA_HOST_DEVICE inline auto getMaskBitPosition() const -> int32_t;
-
-    NEON_CUDA_HOST_DEVICE inline auto getBlockMaskStride() const -> int32_t;    
-
-    NEON_CUDA_HOST_DEVICE inline auto computeIsActive(const uint32_t* activeMask) const -> bool;
-
-    static NEON_CUDA_HOST_DEVICE inline auto getNeighbourBlockID(const int16_3d& blockOffset) -> uint32_t;
-
-    NEON_CUDA_HOST_DEVICE inline auto pitch(int card) const -> Location::Integer;
-
-    static NEON_CUDA_HOST_DEVICE inline auto swirlToCanonical(const Location::Integer id) -> Location::Integer;
-
-    static NEON_CUDA_HOST_DEVICE inline auto canonicalToSwirl(const Location::Integer id) -> Location::Integer;
-
-    NEON_CUDA_HOST_DEVICE inline auto toSwirl() const -> bCell;
 };
-}  // namespace Neon::domain::internal::bGrid
+}  // namespace Neon::domain::internal::experimental::eGrid::details
 
 #include "Neon/domain/internal/bGrid/bCell_imp.h"

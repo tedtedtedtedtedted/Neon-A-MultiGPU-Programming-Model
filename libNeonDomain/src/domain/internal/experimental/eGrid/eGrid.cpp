@@ -3,7 +3,7 @@
 #include "Neon/domain/internal/experimental/eGrid/eGrid.h"
 #include "Neon/domain/internal/experimental/eGrid/ePartitionIndexSpace.h"
 
-namespace Neon::domain::internal::eGrid {
+namespace Neon::domain::internal::eGrid::internals {
 
 auto eGrid::getProperties(const Neon::index_3d& idx) const -> GridBaseTemplate::CellProperties
 {
