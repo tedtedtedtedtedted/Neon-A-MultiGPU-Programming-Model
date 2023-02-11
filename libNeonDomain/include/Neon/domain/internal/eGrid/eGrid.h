@@ -15,7 +15,6 @@
 #include "Neon/domain/interface/LaunchConfig.h"
 #include "Neon/domain/interface/Stencil.h"
 #include "Neon/domain/interface/common.h"
-#include "Neon/domain/internal/eGrid/eInternals/dsBuilder.h"
 #include "Neon/domain/patterns/PatternScalar.h"
 #include "ePartition.h"
 
@@ -63,7 +62,8 @@ class eGrid : public Neon::domain::interface::GridBaseTemplate<eGrid, eCell>
           const Neon::domain::Stencil& stencil,
           const Vec_3d<double>&        spacingData = Vec_3d<double>(1, 1, 1) /**< Spacing, i.e. size of a voxel */,
           const Vec_3d<double>&        origin = Vec_3d<double>(0, 0, 0) /**<      Origin  */,
-          bool                         includeInveseMappingField = false);
+          int                          blockSize = 1,
+          int                          discreteVoxelSpacing = 1);
 
     /**
      * Returns a LaunchParameters configured for the specified inputs

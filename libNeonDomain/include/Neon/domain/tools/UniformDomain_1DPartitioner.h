@@ -1,11 +1,12 @@
 #pragma once
 
+#include "Neon/domain/aGrid.h"
 #include "Neon/domain/tools/partitioning/Cassifications.h"
 #include "Neon/domain/tools/partitioning/SpanClassifier.h"
 #include "Neon/domain/tools/partitioning/SpanDecomposition.h"
 #include "Neon/domain/tools/partitioning/SpanLayout.h"
 
-namespace Neon::domain::tools::partitioning {
+namespace Neon::domain::tools {
 
 class UniformDomain_1DPartitioner
 {
@@ -24,9 +25,10 @@ class UniformDomain_1DPartitioner
         mBlockSize = blockSize;
         mDiscreteVoxelSpacing = discreteVoxelSpacing;
 
-        Neon::int32_3d   block3DSpan(NEON_DIVIDE_UP(domainSize.x, blockSize),
-                                     NEON_DIVIDE_UP(domainSize.y, blockSize),
-                                     NEON_DIVIDE_UP(domainSize.z, blockSize));
+        Neon::int32_3d block3DSpan(NEON_DIVIDE_UP(domainSize.x, blockSize),
+                                   NEON_DIVIDE_UP(domainSize.y, blockSize),
+                                   NEON_DIVIDE_UP(domainSize.z, blockSize));
+
         std::vector<int> nBlockProjectedToZ(block3DSpan.z);
 
         auto constexpr block3dIdxToBlockOrigin = [&](Neon::int32_3d const& block3dIdx) {
@@ -44,7 +46,7 @@ class UniformDomain_1DPartitioner
             return id;
         };
 
-        mSpanPartitioner = SpanDecomposition(
+        mSpanPartitioner = partitioning::SpanDecomposition(
             backend,
             activeCellLambda,
             block3dIdxToBlockOrigin,
@@ -54,7 +56,7 @@ class UniformDomain_1DPartitioner
             domainSize,
             discreteVoxelSpacing);
 
-        mSpanClassifier = SpanClassifier(
+        mSpanClassifier = partitioning::SpanClassifier(
             backend,
             activeCellLambda,
             bcLambda,
@@ -66,19 +68,33 @@ class UniformDomain_1DPartitioner
             discreteVoxelSpacing,
             mSpanPartitioner);
 
-        mPartitionSpan = SpanLayout(
+        mPartitionSpan = partitioning::SpanLayout(
             backend,
             mSpanPartitioner,
             mSpanClassifier);
+    }
+
+    auto getSpanClassifier()
+        const -> partitioning::SpanClassifier const&
+    {
+        return mSpanClassifier;
+    }
+
+    auto getSpanLayout()
+        const -> partitioning::SpanLayout const&
+    {
+        return mPartitionSpan;
     }
 
    private:
     int mBlockSize = 0;
     int mDiscreteVoxelSpacing = 0;
 
-    SpanDecomposition mSpanPartitioner;
-    SpanClassifier    mSpanClassifier;
-    SpanLayout        mPartitionSpan;
+    partitioning::SpanDecomposition mSpanPartitioner;
+    partitioning::SpanClassifier    mSpanClassifier;
+    partitioning::SpanLayout        mPartitionSpan;
+
+    Neon::domain::aGrid mTopology;
 };
 
-}  // namespace Neon::domain::tools::partitioning
+}  // namespace Neon::domain::tools

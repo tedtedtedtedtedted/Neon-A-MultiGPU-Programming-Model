@@ -1,41 +1,49 @@
 #pragma once
 
+#include "Neon/domain/tools/UniformDomain_1DPartitioner.h"
 #include "eGridStorage.h"
+
 namespace Neon::domain::internal::eGrid {
 
 template <typename ActiveCellLambda>
 eGrid::eGrid(const Neon::Backend&         backend,
-             const Neon::index_3d&        cellDomain,
+             const Neon::index_3d&        domainSize,
              const ActiveCellLambda&      activeCellLambda,
              const Neon::domain::Stencil& stencil,
              const Vec_3d<double>&        spacingData,
              const Vec_3d<double>&        origin,
-             bool                         includeInveseMappingField)
+             int                          blockSize,
+             int                          discreteVoxelSpacing)
 {
     auto                 nElementsPerPartition = backend.devSet().template newDataSet<size_t>(0);
-    const Neon::index_3d defaultsBlockDim(512, 1, 1);
+    const Neon::index_3d xpu3dBlockDim(512, 1, 1);
 
     // We do an initialization with nElementsPerPartition to zero,
     // then we reset to the computed number.
     eGrid::GridBaseTemplate::init("eGrid",
                                   backend,
-                                  cellDomain,
+                                  domainSize,
                                   stencil,
                                   nElementsPerPartition,
-                                  defaultsBlockDim,
+                                  xpu3dBlockDim,
                                   spacingData,
                                   origin);
 
-    namespace eInternals = Neon::domain::internal::eGrid::internals;
     mData = std::make_shared<eStorage>();
 
-    mData->inverseMappingEnabled = includeInveseMappingField;
 
-    mData->builder = eInternals::dsBuilder_t(getDevSet(),
-                                            cellDomain,
-                                            activeCellLambda,
-                                            getDevSet().setCardinality(),
-                                            stencil);
+    mData->blockSize = blockSize;
+    mData->discreteVoxelSpacing = discreteVoxelSpacing;
+
+    mData->partitioner = Neon::domain::tools::UniformDomain_1DPartitioner(
+        backend,
+        activeCellLambda,
+        [](Neon::index_3d const&) { return false; },
+        mData->blockSize,
+        domainSize,
+        discreteVoxelSpacing);
+
+
 
     auto initCellClassification = [this, &nElementsPerPartition]() -> void {
         mData->getCount(Neon::DataView::STANDARD) = getDevSet().newDataSet<count_t>();

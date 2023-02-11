@@ -15,39 +15,24 @@
 #include "Neon/domain/interface/LaunchConfig.h"
 #include "Neon/domain/interface/Stencil.h"
 #include "Neon/domain/interface/common.h"
-#include "Neon/domain/internal/eGrid/eInternals/dsBuilder.h"
 #include "Neon/domain/patterns/PatternScalar.h"
 #include "eField.h"
+
+#include "Neon/domain/tools/IndexSpaceTable.h"
+#include "Neon/domain/tools/PartitionTable.h"
+#include "Neon/domain/tools/UniformDomain_1DPartitioner.h"
 
 namespace Neon::domain::internal::eGrid {
 
 
 struct eStorage
 {
-    auto getCount(DataView dw) -> Neon::set::DataSet<count_t>&
-    {
-        return count[DataViewUtil::toInt(dw)];
-    }
-
-    auto getCountPerDevice(DataView dw, Neon::SetIdx setIdx) -> count_t&
-    {
-        const int dwIdx = DataViewUtil::toInt(dw);
-        return count[dwIdx][setIdx.idx()];
-    }
-
-    auto getPartitionIndexSpace(DataView dw) -> Neon::set::DataSet<ePartitionIndexSpace>&
-    {
-        return partitionIndexSpace[DataViewUtil::toInt(dw)];
-    }
-    // INPUT
-    eField<Neon::index_t, index_3d::num_axis> inverseMappingFieldMirror;
-    bool                                      inverseMappingEnabled = {false};
-    // COMPUTED
-    internals::dsBuilder_t builder;
-
-   private:
-    std::array<Neon::set::DataSet<ePartitionIndexSpace>, Neon::DataViewUtil::nConfig> partitionIndexSpace;
-    std::array<Neon::set::DataSet<count_t>, Neon::DataViewUtil::nConfig>              count;
+   public:
+    Neon::domain::tool::IndexSpaceTable<ePartitionIndexSpace> mPartitionIndexSpace;
+    int                                                       blockSize;
+    int                                                       discreteVoxelSpacing;
+    Neon::int32_3d                                            block3DSpan;
+    Neon::domain::tool::UniformDomain_1DPartitioner           partitioner;
 };
 
 }  // namespace Neon::domain::internal::eGrid
