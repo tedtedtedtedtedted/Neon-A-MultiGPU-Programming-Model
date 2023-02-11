@@ -4,7 +4,7 @@ namespace Neon::domain::internal::eGrid {
 
 eGrid::eGrid()
 {
-    m_ds = std::make_shared<eStorage>();
+    mData = std::make_shared<eStorage>();
 }
 
 auto eGrid::newLaunchParameters() const
@@ -17,7 +17,7 @@ auto eGrid::getPartitionIndexSpace(Neon::DeviceType devE,
                                    SetIdx           setIdx,
                                    Neon::DataView   dataView) -> const PartitionIndexSpace&
 {
-    return m_ds->getPartitionIndexSpace(dataView).local(devE, setIdx, dataView);
+    return mData->getPartitionIndexSpace(dataView).local(devE, setIdx, dataView);
 }
 
 const internals::dsFrame_t* eGrid::frame() const
@@ -45,12 +45,12 @@ auto eGrid::convertToNgh(const Neon::index_3d& stencilOffset)
 
 auto eGrid::helpGetMds() -> eStorage&
 {
-    return *(m_ds.get());
+    return *(mData.get());
 }
 
 auto eGrid::helpGetMds() const -> const eStorage&
 {
-    return *(m_ds.get());
+    return *(mData.get());
 }
 
 auto eGrid::getKernelConfig(int            streamIdx,
@@ -129,7 +129,7 @@ auto eGrid::setKernelConfig(Neon::domain::KernelConfig& gridKernelConfig) const 
 
                 for (int i = 0; i < getDevSet().setCardinality(); i++) {
                     const auto    gridMode = Neon::sys::GpuLaunchInfo::mode_e::domainGridMode;
-                    const count_t nElements = m_ds->getCount(indexingPolicy)[i];
+                    const count_t nElements = mData->getCount(indexingPolicy)[i];
                     launchInfo[i].set(gridMode, nElements, blockDim, sharedMem);
                 }
             });
@@ -153,7 +153,7 @@ auto eGrid::helpSetDefaultBlock()
         for (auto indexing : DataViewUtil::validOptions()) {
 
             auto gridMode = Neon::sys::GpuLaunchInfo::mode_e::domainGridMode;
-            auto gridDim = m_ds->getCount(indexing)[i];
+            auto gridDim = mData->getCount(indexing)[i];
             getDefaultLaunchParameters(indexing)[i].set(gridMode, gridDim, getDefaultBlock(), 0);
         }
     };
@@ -214,7 +214,7 @@ auto eGrid::
     for (int i = 0; i < getDevSet().setCardinality(); i++) {
 
         auto gridMode = Neon::sys::GpuLaunchInfo::mode_e::domainGridMode;
-        auto gridDim = m_ds->getCount(dataView)[i];
+        auto gridDim = mData->getCount(dataView)[i];
         newLaunchParameters[i].set(gridMode, gridDim, blockDim, shareMem);
     }
     return newLaunchParameters;

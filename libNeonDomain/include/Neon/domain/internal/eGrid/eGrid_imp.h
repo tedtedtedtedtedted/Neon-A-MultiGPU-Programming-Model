@@ -27,27 +27,27 @@ eGrid::eGrid(const Neon::Backend&         backend,
                                   origin);
 
     namespace eInternals = Neon::domain::internal::eGrid::internals;
-    m_ds = std::make_shared<eStorage>();
+    mData = std::make_shared<eStorage>();
 
-    m_ds->inverseMappingEnabled = includeInveseMappingField;
+    mData->inverseMappingEnabled = includeInveseMappingField;
 
-    m_ds->builder = eInternals::dsBuilder_t(getDevSet(),
+    mData->builder = eInternals::dsBuilder_t(getDevSet(),
                                             cellDomain,
                                             activeCellLambda,
                                             getDevSet().setCardinality(),
                                             stencil);
 
     auto initCellClassification = [this, &nElementsPerPartition]() -> void {
-        m_ds->getCount(Neon::DataView::STANDARD) = getDevSet().newDataSet<count_t>();
-        m_ds->getCount(Neon::DataView::INTERNAL) = getDevSet().newDataSet<count_t>();
-        m_ds->getCount(Neon::DataView::BOUNDARY) = getDevSet().newDataSet<count_t>();
+        mData->getCount(Neon::DataView::STANDARD) = getDevSet().newDataSet<count_t>();
+        mData->getCount(Neon::DataView::INTERNAL) = getDevSet().newDataSet<count_t>();
+        mData->getCount(Neon::DataView::BOUNDARY) = getDevSet().newDataSet<count_t>();
 
         for (int i = 0; i < getDevSet().setCardinality(); i++) {
-            m_ds->getCountPerDevice(Neon::DataView::STANDARD, i) = m_ds->builder.frame()->localIndexingInfo(i).nElements(false);
-            m_ds->getCountPerDevice(Neon::DataView::INTERNAL, i) = m_ds->builder.frame()->localIndexingInfo(i).internalCount();
-            m_ds->getCountPerDevice(Neon::DataView::BOUNDARY, i) = m_ds->builder.frame()->localIndexingInfo(i).bdrCount();
+            mData->getCountPerDevice(Neon::DataView::STANDARD, i) = mData->builder.frame()->localIndexingInfo(i).nElements(false);
+            mData->getCountPerDevice(Neon::DataView::INTERNAL, i) = mData->builder.frame()->localIndexingInfo(i).internalCount();
+            mData->getCountPerDevice(Neon::DataView::BOUNDARY, i) = mData->builder.frame()->localIndexingInfo(i).bdrCount();
 
-            nElementsPerPartition[i] = m_ds->getCountPerDevice(Neon::DataView::STANDARD, i);
+            nElementsPerPartition[i] = mData->getCountPerDevice(Neon::DataView::STANDARD, i);
         }
     };
 
@@ -62,7 +62,7 @@ eGrid::eGrid(const Neon::Backend&         backend,
             for (auto indexing : DataViewUtil::validOptions()) {
 
                 auto gridMode = Neon::sys::GpuLaunchInfo::mode_e::domainGridMode;
-                auto gridDim = m_ds->getCount(indexing)[i];
+                auto gridDim = mData->getCount(indexing)[i];
                 getDefaultLaunchParameters(indexing)[i].set(gridMode, gridDim, getDefaultBlock(), 0);
             }
         }
@@ -74,7 +74,7 @@ eGrid::eGrid(const Neon::Backend&         backend,
             bk = Neon::Backend(getDevSet(), Neon::Runtime::stream);
         }
 
-        if (m_ds->inverseMappingEnabled) {
+        if (mData->inverseMappingEnabled) {
             //            const int cardinality = 3;
             //            m_ds->inverseMappingFieldMirror = this->newField<index_t, cardinality>({bk,
             //                                                                                    Neon::DataUse::IO_COMPUTE},
@@ -91,23 +91,23 @@ eGrid::eGrid(const Neon::Backend&         backend,
 
     auto initPartitionIndexSpace = [this]() {
         for (auto& dw : Neon::DataViewUtil::validOptions()) {
-            m_ds->getPartitionIndexSpace(dw) = this->getDevSet().newDataSet<ePartitionIndexSpace>();
+            mData->getPartitionIndexSpace(dw) = this->getDevSet().newDataSet<ePartitionIndexSpace>();
 
             for (int gpuIdx = 0; gpuIdx < this->getDevSet().setCardinality(); gpuIdx++) {
-                const auto& indexingInfo = m_ds->builder.frame()->localIndexingInfo(gpuIdx);
+                const auto& indexingInfo = mData->builder.frame()->localIndexingInfo(gpuIdx);
 
                 std::array<Cell::Offset, ComDirection_e::COM_NUM> bdrOff = {indexingInfo.bdrOff(ComDirection_e::COM_DW),
                                                                             indexingInfo.bdrOff(ComDirection_e::COM_UP)};
                 std::array<Cell::Offset, ComDirection_e::COM_NUM> ghostOff = {indexingInfo.ghostOff(ComDirection_e::COM_DW),
                                                                               indexingInfo.ghostOff(ComDirection_e::COM_UP)};
 
-                m_ds->getPartitionIndexSpace(dw)[gpuIdx].hGetBoundaryOffset()[ComDirection_e::COM_UP] = bdrOff[ComDirection_e::COM_UP];
-                m_ds->getPartitionIndexSpace(dw)[gpuIdx].hGetBoundaryOffset()[ComDirection_e::COM_DW] = bdrOff[ComDirection_e::COM_DW];
+                mData->getPartitionIndexSpace(dw)[gpuIdx].hGetBoundaryOffset()[ComDirection_e::COM_UP] = bdrOff[ComDirection_e::COM_UP];
+                mData->getPartitionIndexSpace(dw)[gpuIdx].hGetBoundaryOffset()[ComDirection_e::COM_DW] = bdrOff[ComDirection_e::COM_DW];
 
-                m_ds->getPartitionIndexSpace(dw)[gpuIdx].hgetGhostOffset()[ComDirection_e::COM_UP] = ghostOff[ComDirection_e::COM_UP];
-                m_ds->getPartitionIndexSpace(dw)[gpuIdx].hgetGhostOffset()[ComDirection_e::COM_DW] = ghostOff[ComDirection_e::COM_DW];
+                mData->getPartitionIndexSpace(dw)[gpuIdx].hgetGhostOffset()[ComDirection_e::COM_UP] = ghostOff[ComDirection_e::COM_UP];
+                mData->getPartitionIndexSpace(dw)[gpuIdx].hgetGhostOffset()[ComDirection_e::COM_DW] = ghostOff[ComDirection_e::COM_DW];
 
-                m_ds->getPartitionIndexSpace(dw)[gpuIdx].hGetDataView() = dw;
+                mData->getPartitionIndexSpace(dw)[gpuIdx].hGetDataView() = dw;
             }
         }
     };
@@ -152,7 +152,7 @@ auto eGrid::newField(const std::string&  fieldUserName,
                                    getDevSet(),
                                    cardinality,
                                    inactiveValue,
-                                   m_ds->builder.frame(),
+                                   mData->builder.frame(),
                                    haloStatus);
         return field;
     };

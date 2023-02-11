@@ -204,7 +204,7 @@ class eGrid : public Neon::domain::interface::GridBaseTemplate<eGrid, eCell>
     auto helpSetDefaultBlock()
         -> void;
 
-    std::shared_ptr<eStorage> m_ds;
+    std::shared_ptr<eStorage> mData;
 
 
 };  // namespace eGrid
