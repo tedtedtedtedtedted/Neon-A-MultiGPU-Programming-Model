@@ -3,8 +3,8 @@
 
 
 #include "Cassifications.h"
-#include "Neon/domain/tools/partitioning/SpanDecomposition.h"
 #include "Neon/domain/tools/PointHashTable.h"
+#include "Neon/domain/tools/partitioning/SpanDecomposition.h"
 
 namespace Neon::domain::tools::partitioning {
 
@@ -25,6 +25,7 @@ class SpanClassifier
                    const Neon::int32_3d&          block3DSpan,
                    const int&                     blockSize,
                    const Neon::int32_3d&          domainSize,
+                   const Neon::domain::Stencil    stencil,
                    const int&                     discreteVoxelSpacing,
                    const SpanDecomposition&);
 
@@ -186,10 +187,22 @@ SpanClassifier::SpanClassifier(const Neon::Backend&           backend,
                                const Neon::int32_3d&          block3DSpan,
                                const int&                     blockSize,
                                const Neon::int32_3d&          domainSize,
+                               const Neon::domain::Stencil    stencil,
                                const int&                     discreteVoxelSpacing,
                                const SpanDecomposition&       spanPartitioner)
 {
     mData = backend.devSet().newDataSet<Leve3_ByPartition>();
+
+    auto const zRadius = [&stencil]() -> int {
+        auto maxRadius = 0;
+        for (auto const& point : stencil.neighbours()) {
+            auto newRadius = point.z >= 0 ? point.z : -1 * point.z;
+            if (newRadius > maxRadius) {
+                maxRadius = newRadius;
+            }
+        }
+        return maxRadius;
+    };
 
     // For each Partition
     backend.devSet()
@@ -198,8 +211,24 @@ SpanClassifier::SpanClassifier(const Neon::Backend&           backend,
                 int beginZ = spanPartitioner.getFirstZSliceIdx()[setIdx];
                 int lastZ = spanPartitioner.getLastZSliceIdx()[setIdx];
 
+                std::vector<int> const boundaryDwSlices = [&] {
+                    std::vector<int> result;
+                    for (int i = 0; i < zRadius; i++) {
+                        result.push_back(beginZ + i);
+                    }
+                    return result;
+                }();
+
+                std::vector<int> const boundaryUpSlices = [&] {
+                    std::vector<int> result;
+                    for (int i = zRadius - 1; i >= 0; i--) {
+                        result.push_back(lastZ - zRadius);
+                    }
+                    return result;
+                }();
+
                 // We are running in the inner partition blocks
-                for (int z = beginZ + 1; z < lastZ; z++) {
+                for (int z = beginZ + zRadius; z < lastZ - zRadius; z++) {
                     for (int y = 0; y < block3DSpan.y; y++) {
                         for (int x = 0; x < block3DSpan.x; x++) {
                             Neon::int32_3d const point(x, y, z);
@@ -210,7 +239,7 @@ SpanClassifier::SpanClassifier(const Neon::Backend&           backend,
                     }
                 }
                 // We are running in the inner partition blocks
-                for (auto& z : {beginZ}) {
+                for (auto& z : boundaryDwSlices) {
                     for (int y = 0; y < block3DSpan.y; y++) {
                         for (int x = 0; x < block3DSpan.x; x++) {
                             Neon::int32_3d const point(x, y, z);
@@ -223,7 +252,7 @@ SpanClassifier::SpanClassifier(const Neon::Backend&           backend,
                 }
 
                 // We are running in the inner partition blocks
-                for (auto& z : {lastZ}) {
+                for (auto& z : boundaryUpSlices) {
                     for (int y = 0; y < block3DSpan.y; y++) {
                         for (int x = 0; x < block3DSpan.x; x++) {
                             Neon::int32_3d const point(x, y, z);

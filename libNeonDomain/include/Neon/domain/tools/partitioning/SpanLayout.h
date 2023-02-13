@@ -325,14 +325,10 @@ auto SpanLayout::computeBlockConnectivity(
 
     Neon::Backend backend = fieldConnectivity.getBackend();
 
-    auto neighbourBlocks = backend.devSet().template newMemSet<uint32_t>(
-        Neon::DataUse::IO_COMPUTE,
-        3 * 3 * 3 - 1,
-        mMemOptionsAoS,
-        mSpanPartitioner->getNumBlockPerPartition().newType<uint64_t>());
-
     backend.devSet().forEachSetIdxSeq(
         [&](Neon::SetIdx const& setIdx) {
+            auto& partition = fieldConnectivity.getPartition(Neon::Execution::host, setIdx);
+
             for (auto byPartition : {ByPartition::internal}) {
                 const auto byDirection = ByDirection::up;
                 for (auto byDomain : {ByDomain::bulk, ByDomain::bc}) {
@@ -345,28 +341,20 @@ auto SpanLayout::computeBlockConnectivity(
                     auto const start = this->getBoundsInternal(setIdx, byDomain).first;
                     for (uint64_t blockIdx = 0; blockIdx < mapperVec.size(); blockIdx++) {
                         auto const& point3d = mapperVec[blockIdx];
-                        for (int16_t k = -1; k < 2; k++) {
-                            for (int16_t j = -1; j < 2; j++) {
-                                for (int16_t i = -1; i < 2; i++) {
-                                    if (i == 0 && j == 0 && k == 0) {
+                        for (int s = 0; s < stencil.nPoints(); s++) {
 
-                                        Neon::int16_3d const offset(i, j, k);
+                            auto const offset = stencil.neighbours()[s];
 
-                                        auto findings = findNeighbourOfInternalPoint(
-                                            setIdx,
-                                            point3d, offset.newType<int32_t>());
+                            auto findings = findNeighbourOfInternalPoint(
+                                setIdx,
+                                point3d, offset);
 
-                                        uint32_t const noNeighbour = std::numeric_limits<uint32_t>::max();
-                                        uint32_t       targetNgh = noNeighbour;
-                                        if (findings.first) {
-                                            targetNgh = findings.second;
-                                        }
-                                        neighbourBlocks.eRef(setIdx,
-                                                             blockIdx,
-                                                             bCell::getNeighbourBlockID(offset)) = targetNgh;
-                                    }
-                                }
+                            uint32_t const noNeighbour = std::numeric_limits<uint32_t>::max();
+                            uint32_t       targetNgh = noNeighbour;
+                            if (findings.first) {
+                                targetNgh = findings.second;
                             }
+                            partition(blockIdx, s) = targetNgh;
                         }
                     }
                 }
@@ -384,29 +372,22 @@ auto SpanLayout::computeBlockConnectivity(
                         auto const start = this->getBoundsBoundary(setIdx, byDirection, byDomain).first;
                         for (int64_t blockIdx = 0; blockIdx < int64_t(mapperVec.size()); blockIdx++) {
                             auto const& point3d = mapperVec[blockIdx];
-                            for (int16_t k = -1; k < 2; k++) {
-                                for (int16_t j = -1; j < 2; j++) {
-                                    for (int16_t i = -1; i < 2; i++) {
-                                        if (i == 0 && j == 0 && k == 0) {
+                            for (int s = 0; s < stencil.nPoints(); s++) {
 
-                                            Neon::int16_3d const offset(i, j, k);
 
-                                            auto findings = findNeighbourOfBoundaryPoint(
-                                                setIdx,
-                                                point3d,
-                                                offset.newType<int32_t>());
+                                auto const offset = stencil.neighbours()[s];
 
-                                            uint32_t const noNeighbour = std::numeric_limits<uint32_t>::max();
-                                            uint32_t       targetNgh = noNeighbour;
-                                            if (findings.first) {
-                                                targetNgh = findings.second;
-                                            }
-                                            neighbourBlocks.eRef(setIdx,
-                                                                 blockIdx,
-                                                                 bCell::getNeighbourBlockID(offset)) = targetNgh;
-                                        }
-                                    }
+                                auto findings = findNeighbourOfBoundaryPoint(
+                                    setIdx,
+                                    point3d,
+                                    offset.newType<int32_t>());
+
+                                uint32_t const noNeighbour = std::numeric_limits<uint32_t>::max();
+                                uint32_t       targetNgh = noNeighbour;
+                                if (findings.first) {
+                                    targetNgh = findings.second;
                                 }
+                                partition(blockIdx, s) = targetNgh;
                             }
                         }
                     }
@@ -414,9 +395,7 @@ auto SpanLayout::computeBlockConnectivity(
             }
         });
 
-    neighbourBlocks.updateCompute(backend, stream);
-
-    return neighbourBlocks;
+    fieldConnectivity.updateCompute(backend, stream);
 }
 
 template <typename ActiveCellLambda>
@@ -429,7 +408,6 @@ auto SpanLayout::allocateActiveMaskMemSet(
     const int               discreteVoxelSpacing)
     const -> Neon::set::MemSet_t<uint32_t>
 {
-
     //    int const countVoxelPerBlock = blockSize * blockSize * blockSize;
     //    int const count32bitWordPerBlock = (countVoxelPerBlock + 31) / 32;
     //
