@@ -129,10 +129,10 @@ struct LbmContainers<D3Q19Template<typename PopulationField::Type, LbmComputeTyp
         if (cellType == CellType::pressure) {
             rho = fin.template nghVal<dX, dY, dZ>(cell, index1, 0.0).value;
         } else {
-            rho = fin.template nghVal<dX, dY, dZ>(cell, index1, 0.0).value;
-            //            u[0] = fin.template nghVal<dX, dY, dZ>(cell, index1, 0.0).value;
-            //            u[2] = fin.template nghVal<dX, dY, dZ>(cell, index2, 0.0).value;
-            //            u[2] = fin.template nghVal<dX, dY, dZ>(cell, index3, 0.0).value;
+            //rho = fin.template nghVal<dX, dY, dZ>(cell, index1, 0.0).value;
+            u[0] = fin.template nghVal<dX, dY, dZ>(cell, index1, 0.0).value;
+            u[2] = fin.template nghVal<dX, dY, dZ>(cell, index2, 0.0).value;
+            u[2] = fin.template nghVal<dX, dY, dZ>(cell, index3, 0.0).value;
         }
 
         floatingVal = fin.template nghVal<dX, dY, dZ>(cell, index4, 0.0).value;
@@ -226,7 +226,7 @@ struct LbmContainers<D3Q19Template<typename PopulationField::Type, LbmComputeTyp
         middelSum += popIn[middle.mD + 10];
         middelSum += popIn[Lattice::centerDirection];
 
-        {
+        if (cellType == CellType::Classification::pressure) {
             auto               uNormal = ((middelSum + knownSum * 2) / rho) - 1;
             const unsigned int normalOppositeDirection = unknowns.mA;
             const unsigned int normalIdx = normalOppositeDirection < Lattice::centerDirection
@@ -236,6 +236,16 @@ struct LbmContainers<D3Q19Template<typename PopulationField::Type, LbmComputeTyp
             u[1] = 0;
             u[2] = 0;
             u[normalIdx] = uNormal * (normalOppositeDirection < Lattice::centerDirection ? 1 : -1);
+        }
+        if (cellType == CellType::Classification::velocity) {
+            const unsigned int normalOppositeDirection = unknowns.mA;
+            const int          normalDirection = Lattice::getOpposite(normalOppositeDirection);
+            const unsigned int normalIdx = normalOppositeDirection < Lattice::centerDirection
+                                               ? normalOppositeDirection
+                                               : normalOppositeDirection - 10;
+            LbmComputeType     unormal = u[normalDirection] * (normalOppositeDirection < Lattice::centerDirection ? 1 : -1);
+            rho = (LbmComputeType(1.0) / (LbmComputeType(1.0) + unormal));
+            rho *= (middelSum + knownSum * 2);
         }
 
 
