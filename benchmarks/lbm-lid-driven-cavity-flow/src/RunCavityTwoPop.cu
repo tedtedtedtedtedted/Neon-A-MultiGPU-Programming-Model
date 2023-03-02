@@ -100,10 +100,12 @@ auto run(Config& config,
             std::string iterIdStr = std::to_string(iterationId);
             iterIdStr = std::string(numDigits - std::min(numDigits, iterIdStr.length()), '0') + iterIdStr;
 
-            u.ioToVtk("u_" + iterIdStr, "u", false);
-            rho.ioToVtk("rho_" + iterIdStr, "rho", false);
-            // iteration.getInput().ioToVtk("pop_" + iterIdStr, "u", false);
-            // flag.ioToVtk("flag_" + iterIdStr, "u", false);
+            u.ioToVtk("u_" + iterIdStr, "u", false, Neon::IoFileType::BINARY, true);
+
+            // u.ioToVtk("u_" + iterIdStr, "u", false);
+            // rho.ioToVtk("rho_" + iterIdStr, "rho", false);
+            //  iteration.getInput().ioToVtk("pop_" + iterIdStr, "u", false);
+            //  flag.ioToVtk("flag_" + iterIdStr, "u", false);
         }
     };
 
