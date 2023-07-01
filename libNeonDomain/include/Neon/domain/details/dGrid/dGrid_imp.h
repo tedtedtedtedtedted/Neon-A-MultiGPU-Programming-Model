@@ -12,6 +12,17 @@ dGrid::dGrid(const Neon::Backend&  backend,
              const Vec_3d<double>&        spacing,
              const Vec_3d<double>&        origin)
 {
+
+	// Ted: Modify <dimension> to adapt distributed systems.
+	Neon::int32_3d dimDistributed = dimension;
+	int32_t uniformProc = dimension.z / backend.numRank;
+	int32_t reminderProc = dimension.z % backend.numRank;
+	if (backend.myRank < reminderProc) { // Smarter partitioning strategy as below!
+		dimDistributed.z = uniformProc + 1;
+	} else {
+		dimDistributed.z = uniformProc;
+	}	
+
     mData = std::make_shared<Data>(backend);
     const index_3d defaultBlockSize(256, 1, 1);
 
@@ -21,7 +32,7 @@ dGrid::dGrid(const Neon::Backend&  backend,
         // then we reset to the computed number.
         dGrid::GridBase::init("dGrid",
                               backend,
-                              dimension,
+                              dimDistributed,
                               stencil,
                               nElementsPerPartition,
                               Neon::index_3d(256, 1, 1),

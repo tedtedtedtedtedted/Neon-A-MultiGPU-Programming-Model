@@ -39,6 +39,8 @@ struct SynchronizationContainer
     {
         const Neon::Backend& bk = mMultiXpuData.getBackend();
         bk.sync(streamIdx);
+
+		MPI_Barrier(MPI_COMM_WORLD); // Ted: TODO: Not so sure this is enough. Maybe should add this to backend?
     }
 
     auto
@@ -55,6 +57,8 @@ struct SynchronizationContainer
                 bk.syncEvent(setIdx, eventId);
             }
         }
+
+		MPI_Barrier(MPI_COMM_WORLD); // Ted: TODO: Not so sure this is enough. Maybe should add this to backend?
 
 #pragma omp barrier
 //#pragma omp critical

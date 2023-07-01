@@ -43,11 +43,21 @@ struct DataTransferContainer
         bk.forEachDeviceSeq([&](SetIdx setIdx) {
             //            std::cout <<"Sending Section ("<<setIdx<<") " <<std::endl;
             for (auto& memoryTransfer : mMemoryTransfers[setIdx]) {
-                bk.template deviceToDeviceTransfer<char>(streamIdx,
-                                                         memoryTransfer.size,
-                                                         mTransferMode,
-                                                         memoryTransfer.dst.setIdx, (char*)memoryTransfer.dst.mem,
-                                                         memoryTransfer.src.setIdx, (char*)memoryTransfer.src.mem);
+				if (memoryTransfer.distributed) { // Inter-process transfer.
+					bk.template nodeToNodeTransfer<char>(streamIdx,
+														memoryTransfer.size,
+														memoryTransfer.src.setIdx,
+														memoryTransfer.targetRank,
+														(char*) memoryTransfer.src.mem,
+														(char*) memoryTransfer.dst.mem,
+														memoryTransfer.communicator);
+				} else { // Intra-process transfer.
+                	bk.template deviceToDeviceTransfer<char>(streamIdx,
+                                                         	memoryTransfer.size,
+                                                         	mTransferMode,
+                                                         	memoryTransfer.dst.setIdx, (char*)memoryTransfer.dst.mem,
+                                                         	memoryTransfer.src.setIdx, (char*)memoryTransfer.src.mem);
+				}
                 //std::cout <<"Sending ("<<setIdx<<") " << memoryTransfer.toString()<<std::endl;
                 // std::cout<< " val " << ((int64_t*)memoryTransfer.src.mem)[0]<< " to "<<((int64_t*)memoryTransfer.src.mem)[8*8*8-1]<< std::endl;
             }
@@ -61,11 +71,21 @@ struct DataTransferContainer
         if (ContainerExecutionType::deviceManaged == this->getContainerExecutionType()) {
             const Neon::Backend& bk = mMultiXpuData.getBackend();
             for (auto& memoryTransfer : mMemoryTransfers[setIdx]) {
-                bk.template deviceToDeviceTransfer<char>(streamIdx,
-                                                         memoryTransfer.size,
-                                                         mTransferMode,
-                                                         memoryTransfer.dst.setIdx, (char*)memoryTransfer.dst.mem,
-                                                         memoryTransfer.src.setIdx, (char*)memoryTransfer.src.mem);
+				if (memoryTransfer.distributed) { // Inter-process transfer.
+					bk.template nodeToNodeTransfer<char>(streamIdx,
+														memoryTransfer.size,
+														memoryTransfer.src.setIdx,
+														memoryTransfer.targetRank.
+														(char*) memoryTransfer.src.mem,
+														(char*) memoryTransfer.dst.mem,
+														memoryTransfer.communicator);
+				} else { // Intra-process transfer.
+                	bk.template deviceToDeviceTransfer<char>(streamIdx,
+                                                         	memoryTransfer.size,
+                                                         	mTransferMode,
+                                                         	memoryTransfer.dst.setIdx, (char*)memoryTransfer.dst.mem,
+                                                         	memoryTransfer.src.setIdx, (char*)memoryTransfer.src.mem);
+				}
             }
         }
         NEON_THROW_UNSUPPORTED_OPTION("");

@@ -15,6 +15,8 @@
 // #include "Neon/core/types/devType.h"
 #include "Neon/set/DataSet.h"
 
+#include "cuda_runtime.h"
+
 namespace Neon {
 using StreamIdx = int;
 using EventIdx = int;
@@ -39,6 +41,14 @@ class Backend
         std::vector<Neon::set::GpuEventSet> userEventSetVec;
 
         std::shared_ptr<Neon::set::DevSet> devSet;
+
+		// Ted: Below for MPI&NCCL communications.	
+		int myRank, localRank, numRank, numDev, sizeDeviceMem;
+		char hostname[1024];
+		float** sendBuff, recvBuff;
+		ncclUniqueId ncclId;
+		// ncclComm_t communicators[numRank]; // Code won't work because numRank is not known.
+		std::vector<ncclComm_t> communicators;
     };
     auto selfData() -> Data_t&;
     auto selfData() const -> const Data_t&;
@@ -85,6 +95,13 @@ class Backend
      */
     Backend(const Neon::set::DevSet&    devSet,
             const Neon::set::StreamSet& streamSet);
+
+	/**
+	 * Ted:
+	 * Backend constructor for distributed systems.
+	 * Runtime will be Neon::runtime::stream for now because assume GPUs, may later extend.
+	 */
+	Backend(int nGpus, int sizeMem, int argc, char* argv[]);
 
     template <typename T>
     auto newDataSet()
@@ -153,6 +170,16 @@ class Backend
                                 Neon::SetIdx srcSet,
                                 T const*     srcAddr)
       const  -> void;
+
+	template <typename T>
+	auto nodeToNodeTransfer(int 			streamIdx, 
+							size_t 			sizeTransfer,
+							Neon::SetIdx	srcIdx
+							int 			targetRank, 
+							T* 				sendBuff, 
+							T* 				recvBuff,
+							ncclComm_t		communicator) const -> void
+
     /**
      * Run mode: sync/async
      */
