@@ -159,7 +159,7 @@ Backend(int nGpus, int sizeMem, int argc, char* argv[]) // For distributed syste
 		CUDACHECK(cudaMalloc(selfData().recvbuff + i, sizeMem * sizeof(float)));
 		CUDACHECK(cudaMemset(selfData().sendbuff[i], 1, sizeMem * sizeof(float)));
 		CUDACHECK(cudaMemset(selfData()recvbuff[i], 0, sizeMem * sizeof(float))); // TODO: Why one sets to "1", the other sets to "0"?
-		CUDACHECK(cudaStreamCreate(streams + i));
+		CUDACHECK(cudaStreamCreate(streams + i)); // TODO: Fix the stream part of this initialization because likely wrong, use <selfData().StreamSetVec>!!!
 	}
 
 	// Set up NCCL:
@@ -511,6 +511,25 @@ auto Backend::syncAll() const -> void
     exp << "Backend::syncAll() not permitted for a " << Neon::RuntimeUtils::toString(runtime()) << "backend";
     NEON_THROW(exp);
 }
+
+auto Backend::syncAllDistributed() const -> void // TODO: Likely just merge with <syncAll> to hide distributed systems at backend.
+{
+	if (runtime() == Neon::Runtime::openmp) {
+		return; // TODO: Not handled because not sure why openmp involved.	
+	}
+	if (runtime() == Neon::Runtime::stream) {
+		int nStreamSetVec = int(selfData().streamSetVec.size());
+		for (int i = 0; i < nStreamSetVec; i++) { // Local devices/GPUs sync.
+			selfData().streamSetVec[i].sync(); // Sync a <StreamSet> object.
+		}
+		MPI_Barrier(MPI_COMM_WORLD); // Global processes sync.	
+	}
+    NeonException exp("BackendConfig_t");
+    exp << "Backend::syncAll() not permitted for a " << Neon::RuntimeUtils::toString(runtime()) << "backend";
+    NEON_THROW(exp);
+
+}
+
 
 auto Backend::sync(int idx) const -> void
 {

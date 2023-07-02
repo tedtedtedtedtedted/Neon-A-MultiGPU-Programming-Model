@@ -40,7 +40,7 @@ struct SynchronizationContainer
         const Neon::Backend& bk = mMultiXpuData.getBackend();
         bk.sync(streamIdx);
 
-		MPI_Barrier(MPI_COMM_WORLD); // Ted: TODO: Not so sure this is enough. Maybe should add this to backend?
+		//MPI_Barrier(MPI_COMM_WORLD); // Ted: TODO: Not so sure this is enough. Maybe should add this to backend? Actually this is merely waiting for a stream to finish, not global sync.
     }
 
     auto

@@ -265,6 +265,10 @@ class Backend
         const
         -> void;
 
+	auto syncAllDistributed()
+		const
+		-> void;
+
     /**
      *
      * @param idx
