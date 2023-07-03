@@ -510,7 +510,7 @@ auto Backend::syncAll() const -> void
     NEON_THROW(exp);
 }
 
-auto Backend::syncAllDistributed() const -> void // TODO: Likely just merge with <syncAll> to hide distributed systems at backend.
+auto Backend::syncAllDistributed() const -> void // TODO: Likely just merge with <syncAll> to hide distributed systems logic at backend.
 {
 	if (runtime() == Neon::Runtime::openmp) {
 		return; // TODO: Not handled because not sure why openmp involved.	

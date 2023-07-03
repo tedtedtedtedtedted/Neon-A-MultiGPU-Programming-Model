@@ -58,7 +58,7 @@ struct SynchronizationContainer
             }
         }
 
-		MPI_Barrier(MPI_COMM_WORLD); // Ted: TODO: Not so sure this is enough. Maybe should add this to backend?
+		// MPI_Barrier(MPI_COMM_WORLD); // Ted: TODO: Not so sure this is enough. Maybe should add this to backend?
 
 #pragma omp barrier
 //#pragma omp critical
