@@ -151,7 +151,6 @@ Backend(int nGpus, int sizeMem, int argc, char* argv[]) // For distributed syste
 	// Set up device memory:
 	selfData().sendbuff = (float**) malloc(nGpus * sizeof(float*));
 	selfData().recvbuff = (float**) malloc(nGpus * sizeof(float*));
-	cudaStream_t* streams = (cudaStream_t*) malloc(nGpus * sizeof(cudaStream_t)); // TODO: What is streams for? Put it in selfData()?
 
 	for (int i = 0; i < nGpus; ++i) { // ++i and i++ no logical difference here, but ++i faster when number of iterations large according to "https://bytes.com/topic/c/answers/763572-difference-between-i-i-loop".
 		CUDACHECK(cudaSetDevice(selfData().localRank * nGpus + i));
@@ -159,7 +158,6 @@ Backend(int nGpus, int sizeMem, int argc, char* argv[]) // For distributed syste
 		CUDACHECK(cudaMalloc(selfData().recvbuff + i, sizeMem * sizeof(float)));
 		CUDACHECK(cudaMemset(selfData().sendbuff[i], 1, sizeMem * sizeof(float)));
 		CUDACHECK(cudaMemset(selfData()recvbuff[i], 0, sizeMem * sizeof(float))); // TODO: Why one sets to "1", the other sets to "0"?
-		CUDACHECK(cudaStreamCreate(streams + i)); // TODO: Fix the stream part of this initialization because likely wrong, use <selfData().StreamSetVec>!!!
 	}
 
 	// Set up NCCL:
