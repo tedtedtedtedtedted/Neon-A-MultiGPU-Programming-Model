@@ -510,23 +510,23 @@ auto Backend::syncAll() const -> void
     NEON_THROW(exp);
 }
 
-auto Backend::syncAllDistributed() const -> void // TODO: Likely just merge with <syncAll> to hide distributed systems logic at backend.
-{
-	if (runtime() == Neon::Runtime::openmp) {
-		return; // TODO: Not handled because not sure why openmp involved.	
-	}
-	if (runtime() == Neon::Runtime::stream) {
-		int nStreamSetVec = int(selfData().streamSetVec.size());
-		for (int i = 0; i < nStreamSetVec; i++) { // Local devices/GPUs sync.
-			selfData().streamSetVec[i].sync(); // Sync a <StreamSet> object.
-		}
-		MPI_Barrier(MPI_COMM_WORLD); // Global processes sync.	
-	}
-    NeonException exp("BackendConfig_t");
-    exp << "Backend::syncAll() not permitted for a " << Neon::RuntimeUtils::toString(runtime()) << "backend";
-    NEON_THROW(exp);
-
-}
+// auto Backend::syncAllDistributed() const -> void // TODO: Likely just merge with <syncAll> to hide distributed systems logic at backend.
+// {
+// 	if (runtime() == Neon::Runtime::openmp) {
+// 		return; // TODO: Not handled because not sure why openmp involved.	
+// 	}
+// 	if (runtime() == Neon::Runtime::stream) {
+// 		int nStreamSetVec = int(selfData().streamSetVec.size());
+// 		for (int i = 0; i < nStreamSetVec; i++) { // Local devices/GPUs sync.
+// 			selfData().streamSetVec[i].sync(); // Sync a <StreamSet> object.
+// 		}
+// 		MPI_Barrier(MPI_COMM_WORLD); // Global processes sync.	
+// 	}
+//     NeonException exp("BackendConfig_t");
+//     exp << "Backend::syncAll() not permitted for a " << Neon::RuntimeUtils::toString(runtime()) << "backend";
+//     NEON_THROW(exp);
+// 
+// }
 
 
 auto Backend::sync(int idx) const -> void

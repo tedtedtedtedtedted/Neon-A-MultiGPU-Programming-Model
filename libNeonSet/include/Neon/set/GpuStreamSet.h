@@ -155,26 +155,26 @@ class StreamSet
         }
     }
 
-	// Ted: TODO: Added this. Not 100% sure if necessary. Check out journal Mon/July/3/2023 question. Also, this is for example called in "devSet.h" <helpLaunchLambdaOnSpanCUDA()> so make sure to modify that accordingly.
-    template <run_et::et runMode = run_et::et::sync>
-    void syncDistributed() const
-    {
-        const int nDev = (int)m_streamVec.size();
-
-        // Without nDev>0, VS on debug mode displays this annoying message
-        //"User Error 1001: argument to num_threads clause must be positive"
-        if (run_et::et::sync == runMode && nDev > 0) {
-#pragma omp parallel num_threads(nDev)
-            {
-                const int idx = omp_get_thread_num();
-                m_streamVec[idx].sync<runMode>();
-            }
-			MPI_Barrier(MPI_COMM_WORLD); 
-            return;
-        } else {
-            return;
-        }
-    }
+//	// Ted: TODO: Added this. Not 100% sure if necessary. Check out journal Mon/July/3/2023 question. Also, this is for example called in "devSet.h" <helpLaunchLambdaOnSpanCUDA()> so make sure to modify that accordingly.
+//    template <run_et::et runMode = run_et::et::sync>
+//    void syncDistributed() const
+//    {
+//        const int nDev = (int)m_streamVec.size();
+//
+//        // Without nDev>0, VS on debug mode displays this annoying message
+//        //"User Error 1001: argument to num_threads clause must be positive"
+//        if (run_et::et::sync == runMode && nDev > 0) {
+//#pragma omp parallel num_threads(nDev)
+//            {
+//                const int idx = omp_get_thread_num();
+//                m_streamVec[idx].sync<runMode>();
+//            }
+//			MPI_Barrier(MPI_COMM_WORLD); 
+//            return;
+//        } else {
+//            return;
+//        }
+//    }
 
 
     template <run_et::et runMode = run_et::et::sync>

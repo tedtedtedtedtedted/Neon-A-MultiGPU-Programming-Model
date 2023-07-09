@@ -265,9 +265,9 @@ class Backend
         const
         -> void;
 
-	auto syncAllDistributed()
-		const
-		-> void;
+//	auto syncAllDistributed()
+//		const
+//		-> void;
 
     /**
      *
