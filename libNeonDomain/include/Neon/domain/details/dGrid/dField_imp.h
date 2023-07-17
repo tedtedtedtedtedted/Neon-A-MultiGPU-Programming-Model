@@ -18,7 +18,8 @@ dField<T, C>::dField(const std::string&                        fieldUserName,
                      int                                       zHaloRadius,
                      Neon::domain::haloStatus_et::e            haloStatus,
                      int                                       cardinality,
-                     Neon::set::MemSet<Neon::int8_3d>&         stencilIdTo3dOffset)
+                     Neon::set::MemSet<Neon::int8_3d>&         stencilIdTo3dOffset,
+					 int									   zOrigin)
     : Neon::domain::interface::FieldBaseTemplate<T, C, Grid, Partition, int>(&grid,
                                                                              fieldUserName,
                                                                              "dField",
@@ -50,18 +51,19 @@ dField<T, C>::dField(const std::string&                        fieldUserName,
                             : haloStatus;
     const int haloRadius = mData->haloStatus == Neon::domain::haloStatus_et::ON ? zHaloRadius : 0;
     mData->zHaloDim = zHaloRadius;
-
-    Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, 0});
-    {  // Computing origins
+	
+	Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, zOrigin});	
+    
+	{  // Computing origins
         origins.forEachSeq(
-            [&](Neon::SetIdx setIdx, Neon::index_3d& val) {
-                if (setIdx == 0) {
-                    val.z = 0;
-                    return;
-                }
-                const Neon::SetIdx proceedingIdx = setIdx - 1;
-                val.z = origins[proceedingIdx].z + dims[proceedingIdx].z;
-            });
+	        [&](Neon::SetIdx setIdx, Neon::index_3d& val) {
+	            if (setIdx == 0) {
+	                val.z = 0;
+	                return;
+	            }
+	            const Neon::SetIdx proceedingIdx = setIdx - 1;
+	            val.z = origins[proceedingIdx].z + dims[proceedingIdx].z;
+        });
     }
 
     {  // Computing Pitch

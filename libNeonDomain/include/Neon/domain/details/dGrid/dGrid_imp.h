@@ -24,6 +24,10 @@ dGrid::dGrid(const Neon::Backend&  backend,
 	}	
 
     mData = std::make_shared<Data>(backend);
+
+	// Ted: TODO: Update the new way of identifying distributed or not. Problem here is <dGrid> is only for distributed system, not single machine case anymore.
+	mData->zOrigin = backend.myRank * (uniformProc + 1); // Ted: Compute the z-dimension index of the origin.
+
     const index_3d defaultBlockSize(256, 1, 1);
 
     {
@@ -186,7 +190,7 @@ dGrid::dGrid(const Neon::Backend&  backend,
         });
         dGrid::GridBase::init("dGrid",
                               backend,
-                              dimension,
+                              dimDistributed,
                               stencil,
                               nElementsPerPartition,
                               defaultBlockSize,
@@ -213,6 +217,17 @@ auto dGrid::newField(const std::string&  fieldUserName,
         NEON_THROW(exception);
     }
 
+
+//	if (this->getGrid().getBackend().distributed) { // Distributed system origin.	
+//		int zOrigin = 0; // Compute the origin with respect to the distributed system. Should be the sum of z-axes of the argument <dims> which is dimensions for partitions.
+//		for (auto coordinate : dims.vec()) {
+//			zOrigin += coordinate.z;
+//		}	
+//    	Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, zOrigin});	
+//	} else {// Single-node origin.
+//    	Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, 0});	
+//	}
+
     dField<T, C> field(fieldUserName,
                        dataUse,
                        memoryOptions,
@@ -221,7 +236,10 @@ auto dGrid::newField(const std::string&  fieldUserName,
                        mData->halo.z,
                        haloStatus,
                        cardinality,
-                       mData->stencilIdTo3dOffset);
+                       mData->stencilIdTo3dOffset,
+					   mData->zOrigin);
+
+	// field.helpResetGlobalInfoForDistributedSystems(); // Ted: For now decide to do it right from the beginning (i.e. distinguish single-node v.s. distributed systems, for origins of partitions) in <dField()> constructor, instead of resetting.
 
     return field;
 }
