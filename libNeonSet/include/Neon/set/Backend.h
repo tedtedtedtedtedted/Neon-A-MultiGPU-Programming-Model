@@ -42,7 +42,8 @@ class Backend
 
         std::shared_ptr<Neon::set::DevSet> devSet;
 
-		// Ted: Below for MPI&NCCL communications.	
+		// Ted: Below for MPI&NCCL communications.
+		bool distributed;
 		int myRank, localRank, numRank, numDev, sizeDeviceMem;
 		char hostname[1024];
 		float** sendBuff, recvBuff;

@@ -15,6 +15,8 @@ using namespace Neon::domain::tool::testing;
 
 int main(int argc, char** argv)
 {
+	int main_argc = argc;
+	char** main_argv = argv;
     ::testing::InitGoogleTest(&argc, argv);
     Neon::init();
     return RUN_ALL_TESTS();

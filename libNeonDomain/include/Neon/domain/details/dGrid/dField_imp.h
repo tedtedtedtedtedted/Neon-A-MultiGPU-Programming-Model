@@ -413,7 +413,7 @@ auto dField<T, C>::initHaloUpdateTable()
 									{Neon::SetIdx(0), dstMem + (dstGhostBuff * memPhyDim[Data::EndPoints::dst]).rSum(), dstGhostBuff}, // TODO: Is having dstIdx necessary here? I mean we can have it if wanted.
 									{setIdxSrc, srcMem + (srcBoundaryBuff * memPhyDim[Data::EndPoints::src]).rSum(), srcBoundaryBuff}, // TODO: What is logical index? Does this have it?
 									sizeof(T) * r * partitions[Data::EndPoints::src]->dim().x * partitions[Data::EndPoints::src]->dim().y,
-									true, 
+									true,
 									(bk.selfData().myRank + 1) * bk.selfData().numDev, // Target GPU NCCL rank.
 									bk.selfData().communicators[bk.selfData().myRank]);
 					    } else if (ByDirection::down == byDirection && bk.isFirstDevice(setIdxSrc)) {
@@ -435,9 +435,92 @@ auto dField<T, C>::initHaloUpdateTable()
 					}
 				}
 			});
-		}
 
-		// TODO: aosHaloUpdateTableDistributed.
+		// aosHaloUpdateTableDistributed.
+		mData->aosHaloUpdateTableDistributed.forEachPutConfiguration(
+				bk, [&](Neon::SetIdx                                  setIdxSrc,
+					Execution                                     execution,
+					Neon::domain::tool::partitioning::ByDirection byDirection,
+					std::vector<Neon::set::MemoryTransfer>&       transfersVec) {
+				{
+					using namespace Neon::domain::tool::partitioning;
+					
+					Neon::SetIdx setIdxDst = getNghSetIdx(setIdxSrc, byDirection);
+					
+					int r = grid.getStencil().getRadius();
+					
+					std::array<Partition*, Data::EndPointsUtils::nConfigs>                                  partitions;
+					std::array<std::array<int, ByDirectionUtils::nConfigs>, Data::EndPointsUtils::nConfigs> ghostZBeginIdx;
+					std::array<std::array<int, ByDirectionUtils::nConfigs>, Data::EndPointsUtils::nConfigs> boundaryZBeginIdx;
+					std::array<Neon::size_4d, Data::EndPointsUtils::nConfigs>                               memPhyDim;
+					
+					partitions[Data::EndPoints::dst] = &this->getPartition(execution, setIdxDst, Neon::DataView::STANDARD);
+					partitions[Data::EndPoints::src] = &this->getPartition(execution, setIdxSrc, Neon::DataView::STANDARD);
+					
+					for (auto endPoint : {Data::EndPoints::dst, Data::EndPoints::src}) {
+					    ghostZBeginIdx[endPoint][static_cast<int>(ByDirection::down)] = 0;
+					    boundaryZBeginIdx[endPoint][static_cast<int>(ByDirection::down)] = r;
+					    boundaryZBeginIdx[endPoint][static_cast<int>(ByDirection::up)] = partitions[endPoint]->dim().z;
+					    ghostZBeginIdx[endPoint][static_cast<int>(ByDirection::up)] = partitions[endPoint]->dim().z + r;
+					
+ 	                   memPhyDim[endPoint] = Neon::size_4d(
+ 	                       this->getCardinality(),
+ 	                       size_t(partitions[endPoint]->dim().x * this->getCardinality()),
+ 	                       size_t(partitions[endPoint]->dim().x * this->getCardinality()) * partitions[endPoint]->dim().y,
+ 	                       1);
+					}
+
+
+	                T* srcMem = partitions[Data::EndPoints::src]->mem();
+	                T* dstMem = partitions[Data::EndPoints::dst]->mem();
+	
+	                Neon::size_4d srcBoundaryBuff(0, 0, boundaryZBeginIdx[Data::EndPoints::src][static_cast<int>(byDirection)], 0);
+	                Neon::size_4d dstGhostBuff(0, 0, ghostZBeginIdx[Data::EndPoints::dst][static_cast<int>(ByDirectionUtils::invert(byDirection))], 0);
+
+	
+	                //                    std::cout << "To  " << dstGhostBuff << " prt " << partitions[Data::EndPoints::dst]->prtID() << " From  " << srcBoundaryBuff << "(src dim" << partitions[Data::EndPoints::src]->dim() << ")" << std::endl;
+	                //                    std::cout << "dst mem " << partitions[Data::EndPoints::dst]->mem() << " " << std::endl;
+	                //                    std::cout << "dst pitch " << (dstGhostBuff * memPhyDim[Data::EndPoints::dst]).rSum() << " " << std::endl;
+	                //                    std::cout << "dst dstGhostBuff " << dstGhostBuff << " " << std::endl;
+	                //                    std::cout << "dst pitch all" << memPhyDim[Data::EndPoints::dst] << " " << std::endl;
+	
+	                Neon::set::MemoryTransfer transfer({setIdxDst, dstMem + (dstGhostBuff * memPhyDim[Data::EndPoints::dst]).rSum(), dstGhostBuff},
+	                                                   {setIdxSrc, srcMem + (srcBoundaryBuff * memPhyDim[Data::EndPoints::src]).rSum(), srcBoundaryBuff},
+	                                                   sizeof(T) *
+	                                                       r * this->getCardinality() *
+	                                                       partitions[Data::EndPoints::src]->dim().x *
+	                                                       partitions[Data::EndPoints::src]->dim().y);
+	                if (ByDirection::up == byDirection && bk.isLastDevice(setIdxSrc)) {
+						if (bk.selfData().myRank == bk.selfData().numRank - 1) { // Last process.
+							return;
+						}
+						Neon::set::MemoryTransfer transfer(
+								{Neon::SetIdx(0), dstMem + (dstGhostBuff * memPhyDim[Data::EndPoints::dst]).rSum(), dstGhostBuff}, // TODO: Is having dstIdx necessary here? I mean we can have it if wanted.
+								{setIdxSrc, srcMem + (srcBoundaryBuff * memPhyDim[Data::EndPoints::src]).rSum(), srcBoundaryBuff}, // TODO: What is logical index? Does this have it?
+								sizeof(T) * r * partitions[Data::EndPoints::src]->dim().x * partitions[Data::EndPoints::src]->dim().y,
+								true,
+								(bk.selfData().myRank + 1) * bk.selfData().numDev, // Target GPU NCCL rank.
+								bk.selfData().communicators[bk.selfData().myRank]);
+
+	                } else if (ByDirection::down == byDirection && bk.isFirstDevice(setIdxSrc)) {
+						if (bk.selfData().myRank = 0) { // First process.
+							return;
+						}
+						Neon::set::MemoryTransfer transfer(
+								{Neon::SetIdx(bk.selfData().numDev - 1), dstMem + (dstGhostBuff * memPhyDim[Data::EndPoints::dst]).rSum(), dstGhostBuff},
+								{setIdxSrc, srcMem + (srcBoundaryBuff * memPhyDim[Data::EndPoints::src]).rSum(), srcBoundaryBuff},
+								sizeof(T) * r * partitions[Data::EndPoints::src]->dim().x * partitions[Data::EndPoints::src]->dim().y,
+								true,
+								bk.selfData().myRank * bk.selfData().numDev - 1, // Target GPU NCCL rank.
+								bk.selfData().communicators[bk.selfData().myRank - 1]);
+	                } else {
+						return;
+					}
+	
+	                // std::cout << transfer.toString() << std::endl;
+	                transfersVec.push_back(transfer);
+	            }
+			});
 	}
 	
 
@@ -507,7 +590,7 @@ auto dField<T, C>::initHaloUpdateTable()
             }
         });
 
-	// Ted: TODO: Do the same as SOA.
+	// Ted: TODO: Do the same as SOA. Update: Umm... Anything to do for <aosHaloUpdateTableLocal>? Don't think so?
     mData->aosHaloUpdateTableLocal.forEachPutConfiguration(
         bk, [&](Neon::SetIdx                                  setIdxSrc,
                 Execution                                     execution,

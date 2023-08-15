@@ -244,6 +244,62 @@ auto IODense<ExportType, IntType>::forEach(const Lambda_ta& lambda,
     }
 }
 
+
+template <typename ExportType,
+          typename IntType>
+template <typename Lambda_ta,
+          typename... ExportTypeVariadic_ta>
+auto IODense<ExportType, IntType>::forEachStartingAt(const Lambda_ta& lambda,
+										   const int start_z,
+										   const int dim_z,
+                                           IODense<ExportTypeVariadic_ta>&... otherDense)
+    -> void
+{
+    if (mRepresentation == Representation::IMPLICIT) {
+        NEON_THROW_UNSUPPORTED_OPERATION("A IODense configure as IMPLICIT does not support such operation");
+    }
+#pragma omp parallel for collapse(3)
+    for (int z = start_z; z < dim_z; z++) {
+        for (int y = 0; y < mSpace.y; y++) {
+            for (int x = 0; x < mSpace.x; x++) {
+                for (int c = 0; c < mCardinality; c++) {
+                    index_3d xyz(x, y, z);
+                    lambda(xyz,
+                           c,
+                           getReference(xyz, c),
+                           otherDense.getReference(xyz, c)...);
+                }
+            }
+        }
+    }
+}
+
+template <typename ExportType,
+          typename IntType>
+template <typename Lambda_ta,
+          typename... ExportTypeVariadic_ta>
+auto IODense<ExportType, IntType>::forEachStartingAt(const Lambda_ta& lambda,
+										   const int start_z,
+										   const int dim_z,
+                                           const IODense<ExportTypeVariadic_ta>&... otherDense)
+    const -> void
+{
+#pragma omp parallel for collapse(3)
+    for (int z = start_z; z < dim_z; z++) {
+        for (int y = 0; y < mSpace.y; y++) {
+            for (int x = 0; x < mSpace.x; x++) {
+                for (int c = 0; c < mCardinality; c++) {
+                    index_3d xyz(x, y, z);
+                    lambda(xyz, c, operator()(xyz, c), otherDense(xyz, c)...);
+                }
+            }
+        }
+    }
+}
+
+
+
+
 template <typename ExportType,
           typename IntType>
 auto IODense<ExportType, IntType>::maxDiff(const IODense<ExportType, IntType>& a,

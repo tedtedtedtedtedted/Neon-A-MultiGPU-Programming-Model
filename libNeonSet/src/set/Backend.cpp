@@ -29,6 +29,7 @@ auto Backend::selfData() const -> const Data_t&
 Backend::Backend()
 {
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = false;
     selfData().runtime = Neon::Runtime::none;
     selfData().devSet = std::make_shared<Neon::set::DevSet>();
     selfData().streamSetVec = std::vector<Neon::set::StreamSet>(0);
@@ -42,6 +43,7 @@ Backend::Backend(int nGpus, Neon::Runtime runtime)
         devIds.push_back(i);
     }
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = false;
     selfData().runtime = runtime;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
     selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
@@ -53,6 +55,7 @@ Backend::Backend(const std::vector<int>& devIds,
                  Neon::Runtime           runtime)
 {
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = false;
     selfData().runtime = runtime;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
     selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
@@ -65,6 +68,7 @@ Backend::Backend(const Neon::set::DevSet& devSet,
 {
 
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = false;
     selfData().runtime = runtime;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devSet);
     selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
@@ -76,6 +80,7 @@ Backend::Backend(const Neon::set::DevSet&    devSet,
                  const Neon::set::StreamSet& streamSet)
 {
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = false;
     selfData().runtime = Neon::Runtime::stream;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devSet);
     selfData().streamSetVec.push_back(streamSet);
@@ -87,6 +92,7 @@ Backend::Backend(const std::vector<int>&     devIds,
                  const Neon::set::StreamSet& streamSet)
 {
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = false;
     selfData().runtime = Neon::Runtime::stream;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
     selfData().streamSetVec.push_back(streamSet);
@@ -94,15 +100,16 @@ Backend::Backend(const std::vector<int>&     devIds,
     assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
 }
 
-Backend(int nGpus, int sizeMem, int argc, char* argv[]) // For distributed systems.	
+Backend(int nGpus, int argc, char* argv[]) // For distributed systems.	
 {
     std::vector<int> devIds;
     for (int i = 0; i < nGpus; i++) {
         devIds.push_back(i);
     }
     m_data = std::make_shared<Data_t>();
+	selfData().distributed = true;
 	selfData().numDev = nGpus;
-	selfData().sizeDeviceMem = sizeMem;
+	// selfData().sizeDeviceMem = sizeMem;
     selfData().runtime = Neon::Runtime::stream;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
     selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
@@ -152,13 +159,13 @@ Backend(int nGpus, int sizeMem, int argc, char* argv[]) // For distributed syste
 	selfData().sendbuff = (float**) malloc(nGpus * sizeof(float*));
 	selfData().recvbuff = (float**) malloc(nGpus * sizeof(float*));
 
-	for (int i = 0; i < nGpus; ++i) { // ++i and i++ no logical difference here, but ++i faster when number of iterations large according to "https://bytes.com/topic/c/answers/763572-difference-between-i-i-loop".
-		CUDACHECK(cudaSetDevice(selfData().localRank * nGpus + i));
-		CUDACHECK(cudaMalloc(selfData().sendbuff + i, sizeMem * sizeof(float)));
-		CUDACHECK(cudaMalloc(selfData().recvbuff + i, sizeMem * sizeof(float)));
-		CUDACHECK(cudaMemset(selfData().sendbuff[i], 1, sizeMem * sizeof(float)));
-		CUDACHECK(cudaMemset(selfData()recvbuff[i], 0, sizeMem * sizeof(float))); // TODO: Why one sets to "1", the other sets to "0"?
-	}
+//	for (int i = 0; i < nGpus; ++i) { // ++i and i++ no logical difference here, but ++i faster when number of iterations large according to "https://bytes.com/topic/c/answers/763572-difference-between-i-i-loop".
+//		CUDACHECK(cudaSetDevice(selfData().localRank * nGpus + i));
+//		CUDACHECK(cudaMalloc(selfData().sendbuff + i, sizeMem * sizeof(float)));
+//		CUDACHECK(cudaMalloc(selfData().recvbuff + i, sizeMem * sizeof(float)));
+//		CUDACHECK(cudaMemset(selfData().sendbuff[i], 1, sizeMem * sizeof(float)));
+//		CUDACHECK(cudaMemset(selfData()recvbuff[i], 0, sizeMem * sizeof(float))); // TODO: Why one sets to "1", the other sets to "0"?
+//	} // Max: Memory are allocated when creating field so no need here.
 
 	// Set up NCCL:
 	// Generating NCCL unique ID at one process and broadcasting it to all:
