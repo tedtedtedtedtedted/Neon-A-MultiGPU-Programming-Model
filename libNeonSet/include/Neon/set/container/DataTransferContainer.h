@@ -75,7 +75,7 @@ struct DataTransferContainer
 					bk.template nodeToNodeTransfer<char>(streamIdx,
 														memoryTransfer.size,
 														memoryTransfer.src.setIdx,
-														memoryTransfer.targetRank.
+														memoryTransfer.targetRank,
 														(char*) memoryTransfer.src.mem,
 														(char*) memoryTransfer.dst.mem,
 														memoryTransfer.communicator);

@@ -11,8 +11,8 @@
 
 #include "Neon/set/DevSet.h"
 
-#include "nccl.h"
 #include "mpi.h"
+#include <stdexcept>
 
 namespace Neon {
 
@@ -100,7 +100,7 @@ Backend::Backend(const std::vector<int>&     devIds,
     assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
 }
 
-Backend(int nGpus, int argc, char* argv[]) // For distributed systems.	
+Backend::Backend(int nGpus, int argc, char* argv[]) // For distributed systems.	
 {
     std::vector<int> devIds;
     for (int i = 0; i < nGpus; i++) {
@@ -125,8 +125,9 @@ Backend(int nGpus, int argc, char* argv[]) // For distributed systems.
 
 	// We assume ranks to start from 0 and contiguous:
 	if (selfData().myRank >= selfData().numRank) { // TODO: Better error report (e.g. NEON_EXCEPTION...).
-		std::cerr << "MPI Ranks Not As Expected" << std::endl;
-		return 1; // Indicate an error occurred by returning a non-zero value.
+		//std::cerr << "MPI Ranks Not As Expected" << std::endl;
+		//return 1; // Indicate an error occurred by returning a non-zero value.
+		throw std::runtime_error("MPI Ranks Not As Expected"); // TODO: Whenever construct, need to catch! TODO: Maybe just exit(1) with the risk of memory leak?
 	}
 		
 	gethostname(selfData().hostname, 1024);
@@ -138,17 +139,16 @@ Backend(int nGpus, int argc, char* argv[]) // For distributed systems.
 	}
 
 	// Set local rank (local rank is for assigning distinct GPUs to different processes):
-	char hostnames[numRank * 1024]; // Better do 1D than 2D because a parameter in MPI_Allgather.
-	strncpy(hostnames[myRank * 1024], selfData().hostname, 1024); // Assume MPI ranks contiguous and start from 0.
-	hostnames[myRank][1024 - 1] = '\0';
-	MPI_ALLgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostnames, 1024, MPI_CHAR, MPI_COMM_WORLD);
+	char hostnames[selfData().numRank * 1024]; // Better do 1D than 2D because a parameter in MPI_Allgather.
+	strncpy(hostnames + selfData().myRank * 1024, selfData().hostname, 1024); // Assume MPI ranks contiguous and start from 0.
+	hostnames[selfData().myRank * 1024 + 1024 - 1] = '\0';
+	MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostnames, 1024, MPI_CHAR, MPI_COMM_WORLD);
 
 	selfData().localRank = 0;
 	int resultStrncmp;
-	for (int p = 0; p < numRank; p++) {
-		if (p == myRank) break;
-
-    	int resultStrncmp = strncmp(hostnames[p * 1024], hostnames[myRank * 1024], std::min(len1, len2)); // Careful can't just be 1024, as we only care about chars before first null-terminator.
+	for (int p = 0; p < selfData().numRank; p++) {
+		if (p == selfData().myRank) break;
+			resultStrncmp = strncmp(hostnames + p * 1024, hostnames + selfData().myRank * 1024, std::min(strnlen(hostnames + p * 1024, 1024), strnlen(hostnames + selfData().myRank * 1024, 1024))); // Careful can't just be 1024, as we only care about chars before first null-terminator.
 		
 		if (resultStrncmp == 0) {
 			selfData().localRank++;
@@ -156,8 +156,8 @@ Backend(int nGpus, int argc, char* argv[]) // For distributed systems.
 	}
 
 	// Set up device memory:
-	selfData().sendbuff = (float**) malloc(nGpus * sizeof(float*));
-	selfData().recvbuff = (float**) malloc(nGpus * sizeof(float*));
+	selfData().sendBuff = (float**)malloc(nGpus * sizeof(float*));
+	selfData().recvBuff = (float**)malloc(nGpus * sizeof(float*));
 
 //	for (int i = 0; i < nGpus; ++i) { // ++i and i++ no logical difference here, but ++i faster when number of iterations large according to "https://bytes.com/topic/c/answers/763572-difference-between-i-i-loop".
 //		CUDACHECK(cudaSetDevice(selfData().localRank * nGpus + i));
@@ -180,7 +180,7 @@ Backend(int nGpus, int argc, char* argv[]) // For distributed systems.
 		if (selfData().myRank == i || selfData().myRank == i + 1) {
 			int offsetRank = selfData().myRank == i ? selfData().numDev - 1 : 0;
 			cudaSetDevice(offsetRank);
-			ncclCommInitRank(*(selfData().communicators[i]), selfData().numRank * selfData().numDev, selfData().ncclId, selfData().myRank * selfData().numDev + offsetRank); // Create communicators for neighbor exchange (i.e. one communicator for adjacent pair of processes).		
+			ncclCommInitRank(&(selfData().communicators[i]), selfData().numRank * selfData().numDev, selfData().ncclId, selfData().myRank * selfData().numDev + offsetRank); // Create communicators for neighbor exchange (i.e. one communicator for adjacent pair of processes).		
 		}
 	}
 	ncclGroupEnd();
@@ -717,6 +717,30 @@ auto Backend::helpDeviceToDeviceTransferByte(int                     streamId,
                     srcSet,
                     srcAddr,
                     bytes);
+}
+
+template <typename T>
+auto Backend::helpNodeToNodeTransferByte(int 			streamIdx, 
+										size_t 			sizeTransfer,
+										Neon::SetIdx	srcIdx,
+										int 			targetRank, 
+										T* 				sendBuff, 
+										T* 				recvBuff,
+										ncclComm_t		communicator) const -> void
+{
+	// A transfer consists of two endpoints. In our logic, the exchange is symmetric, i.e. A sends to B iff B sends to A. Therefore, when A sends to B via ncclSend(), we can immediately do A receives from B via ncclRecv().
+	
+	if (sizeTransfer == 0) { // In case transfer size is 0.
+		return;
+	}
+
+    auto& stream = streamSet(streamIdx)[srcIdx].stream(); // TODO: Not sure how stream mechanism in Neon work, above is mimicking deviceToDeviceTransfer if you dig deep enough.
+
+	ncclGroupStart();
+	// No need to cudaSetDevice() because we carefully initialize communicators in backend constructor overcome this.
+	ncclSend(sendBuff, sizeTransfer, ncclChar, targetRank, communicator, stream); // TODO: Took shortcut here and assume it is ncclChar we work with because in run() in DataTransferContainer this function is called with char type.
+	ncclRecv(recvBuff, sizeTransfer, ncclChar, targetRank, communicator, stream);
+	ncclGroupEnd();	
 }
 
 auto Backend::deviceCount() const -> int

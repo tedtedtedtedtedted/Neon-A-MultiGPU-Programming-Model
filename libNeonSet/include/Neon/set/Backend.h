@@ -14,7 +14,7 @@
 // #include "Neon/core/types/mode.h"
 // #include "Neon/core/types/devType.h"
 #include "Neon/set/DataSet.h"
-
+#include "nccl.h"
 #include "cuda_runtime.h"
 
 namespace Neon {
@@ -46,7 +46,8 @@ class Backend
 		bool distributed;
 		int myRank, localRank, numRank, numDev, sizeDeviceMem;
 		char hostname[1024];
-		float** sendBuff, recvBuff;
+		float** sendBuff;
+		float** recvBuff;
 		ncclUniqueId ncclId;
 		// ncclComm_t communicators[numRank]; // Code won't work because numRank is not known.
 		std::vector<ncclComm_t> communicators;
@@ -102,7 +103,7 @@ class Backend
 	 * Backend constructor for distributed systems.
 	 * Runtime will be Neon::runtime::stream for now because assume GPUs, may later extend.
 	 */
-	Backend(int nGpus, int sizeMem, int argc, char* argv[]);
+	Backend(int nGpus, int argc, char* argv[]);
 
     template <typename T>
     auto newDataSet()
@@ -175,11 +176,11 @@ class Backend
 	template <typename T>
 	auto nodeToNodeTransfer(int 			streamIdx, 
 							size_t 			sizeTransfer,
-							Neon::SetIdx	srcIdx
+							Neon::SetIdx	srcIdx,
 							int 			targetRank, 
 							T* 				sendBuff, 
 							T* 				recvBuff,
-							ncclComm_t		communicator) const -> void
+							ncclComm_t		communicator) const -> void;
 
     /**
      * Run mode: sync/async
@@ -331,6 +332,16 @@ class Backend
                                         Neon::SetIdx            srcSet,
                                         const char*             srcAddr)
     const    -> void;
+
+	template <typename T>
+	auto helpNodeToNodeTransferByte(int 			streamIdx, 
+									size_t 			sizeTransfer,
+									Neon::SetIdx	srcIdx,
+									int 			targetRank, 
+									T* 				sendBuff, 
+									T* 				recvBuff,
+									ncclComm_t		communicator) const -> void;
+		
 };
 
 }  // namespace Neon
