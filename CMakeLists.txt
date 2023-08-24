@@ -39,6 +39,9 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Ted: According to ChatGPT. For "nccl.h" path.
+include_directories($ENV{NCCL_HOME}/include)
+
 # Definition of the target interface NeonDeveloperLib
 add_library(NeonDeveloperLib INTERFACE)
 target_compile_features(NeonDeveloperLib INTERFACE cxx_std_20)
