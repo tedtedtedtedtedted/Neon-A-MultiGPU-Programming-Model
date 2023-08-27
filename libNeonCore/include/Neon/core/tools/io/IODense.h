@@ -165,6 +165,20 @@ struct IODense
                  const IODense<ExportTypeVariadic_ta>&... otherDense /**< Optional. Other fields that may be needed during the field visit */)
         const -> void;
 
+	template <typename Lambda_ta,
+	          typename... ExportTypeVariadic_ta>
+	auto forEachStartingAt(const Lambda_ta& lambda,
+							const int start_z,
+							const int dim_z,
+							IODense<ExportTypeVariadic_ta>&... otherDense) -> void;
+	
+	template <typename Lambda_ta,
+	          typename... ExportTypeVariadic_ta>
+	auto forEachStartingAt(const Lambda_ta& lambda,
+							const int start_z,
+							const int dim_z,
+							const IODense<ExportTypeVariadic_ta>&... otherDense) const -> void;
+	
     /**
      * Computing the max different component by component.
      */

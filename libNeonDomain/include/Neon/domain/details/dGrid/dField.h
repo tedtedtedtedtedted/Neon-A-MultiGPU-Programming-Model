@@ -145,7 +145,8 @@ class dField : public Neon::domain::interface::FieldBaseTemplate<T,
            int                                       zHaloRadius,
            Neon::domain::haloStatus_et::e            haloStatus,
            int                                       cardinality,
-           Neon::set::MemSet<Neon::int8_3d>&         stencilIdTo3dOffset);
+           Neon::set::MemSet<Neon::int8_3d>&         stencilIdTo3dOffset,
+		   int 										 zOrigin);
 
     struct Data
     {

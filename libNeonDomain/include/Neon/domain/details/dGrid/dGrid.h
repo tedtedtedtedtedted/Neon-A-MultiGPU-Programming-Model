@@ -207,7 +207,8 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
     auto helpGetFirstZindex()
         const -> const Neon::set::DataSet<int32_t>&;
 
-   private:
+   //private: // Ted: TODO: Dangerous! Let this be public so accessbile. Confirm with Max!
+   public:    // Ted: TODO: Dangerous! Let this be public so accessbile. Confirm with Max!
     struct Data
     {
         Data() = default;
@@ -230,7 +231,7 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
 		int							zOrigin; // Ted: In distributed system, without this, info lost after <dGrid> constructor because the global grid dimension turned into the local distributed grid dimension, which doesn't preserve the global grid dimension.
     };
 
-    std::shared_ptr<Data> mData;
+    std::shared_ptr<Data> mData; // Ted: TODO: Do something similar to <selfData()> as backend? Any benefit?
 };
 
 }  // namespace Neon::domain::details::dGrid

@@ -84,12 +84,21 @@ class TestData
     auto compare(FieldNames name, LambdaCompare lambdaCompare)
         -> void;
 
+	template <typename LambdaCompare>
+	auto compareDistributed(FieldNames    name,
+							LambdaCompare lambdaCompare)
+    	-> void;
+
     template <typename LambdaCompare>
     auto compareAndGetField(FieldNames name, LambdaCompare lambdaCompare)
         -> Neon::domain::tool::testing::IODomain<T>;
 
     auto compare(FieldNames name, T tollerance = T(0.0000001))
         -> bool;
+
+	auto compareDistributed(FieldNames         name,
+							[[maybe_unused]] T tollerance = T(0.0000001)) 
+		-> bool;
 
     auto compareAndGetField(FieldNames name, T tollerance = T(0.0000001))
         -> Neon::domain::tool::testing::IODomain<T>;

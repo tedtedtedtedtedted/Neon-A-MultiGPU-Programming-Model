@@ -118,6 +118,18 @@ struct IODomain
                        const IODomain<ExportTypeVariadic_ta>&... otherDense /**< Optional. Other fields that may be needed during the field visit */)
         const -> void;
 
+	template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+	auto forEachActiveStartingAt(const Lambda_ta& userLambda,
+														 const int start_z,
+														 const int dim_z,
+	                                                     IODomain<ExportTypeVariadic_ta>&... otherDense) -> void;
+	
+	template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+	auto forEachActiveStartingAt(const Lambda_ta& lambda,
+														 const int start_z,
+														 const int dim_z,
+	                                                     const IODomain<ExportTypeVariadic_ta>&... otherDense) const -> void;
+	
     /**
      * Computing the max different component by component.
      */
@@ -352,7 +364,6 @@ auto IODomain<ExportType, intType_ta>::forEachActive(const Lambda_ta& lambda,
     });
 }
 
-
 template <typename ExportType, typename intType_ta>
 template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
 auto IODomain<ExportType, intType_ta>::forEachActiveStartingAt(const Lambda_ta& userLambda,
@@ -369,10 +380,9 @@ auto IODomain<ExportType, intType_ta>::forEachActiveStartingAt(const Lambda_ta& 
             userLambda(idx, cc, getReference(idx, cc), otherDense.getReference(idx, cc)...);
         }
     },
-	start_z
-	dim_z,
+	start_z,
+	dim_z
 	);
-
 }
 
 template <typename ExportType, typename intType_ta>

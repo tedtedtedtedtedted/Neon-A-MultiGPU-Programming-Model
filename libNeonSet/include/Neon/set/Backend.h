@@ -30,7 +30,7 @@ class Backend
    public:
     static constexpr int mainStreamIdx{0};
 
-   private:
+   //private: // Ted: TODO: Dangerous! Let this be public so accessbile. Confirm with Max!
     struct Data_t
     {
         Neon::Runtime    runtime{Neon::Runtime::none};
@@ -52,9 +52,9 @@ class Backend
 		// ncclComm_t communicators[numRank]; // Code won't work because numRank is not known.
 		std::vector<ncclComm_t> communicators;
     };
-    auto selfData() -> Data_t&;
-    auto selfData() const -> const Data_t&;
-
+    auto selfData() -> Data_t&; 
+	auto selfData() const -> const Data_t&;
+ 
     std::shared_ptr<Data_t> m_data;
 
    public:

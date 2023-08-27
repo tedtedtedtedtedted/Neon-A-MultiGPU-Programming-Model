@@ -357,7 +357,7 @@ auto dField<T, C>::initHaloUpdateTable()
 
 
 	
-	if (bk.distributed) { // If working with distributed systems:
+	if (bk.selfData().distributed) { // If working with distributed systems:
 		mData->soaHaloUpdateTableDistributed.forEachPutConfiguration(
 				bk, [&](Neon::SetIdx                                  setIdxSrc,
 					Execution                                     execution,
@@ -416,8 +416,9 @@ auto dField<T, C>::initHaloUpdateTable()
 									true,
 									(bk.selfData().myRank + 1) * bk.selfData().numDev, // Target GPU NCCL rank.
 									bk.selfData().communicators[bk.selfData().myRank]);
+					    	transfersVec.push_back(transfer);
 					    } else if (ByDirection::down == byDirection && bk.isFirstDevice(setIdxSrc)) {
-							if (bk.selfData().myRank = 0) { // First process.
+							if (bk.selfData().myRank == 0) { // First process.
 								return;
 							}
 							Neon::set::MemoryTransfer transfer(
@@ -427,11 +428,11 @@ auto dField<T, C>::initHaloUpdateTable()
 									true,
 									bk.selfData().myRank * bk.selfData().numDev - 1, // Target GPU NCCL rank.
 									bk.selfData().communicators[bk.selfData().myRank - 1]);
+					    	transfersVec.push_back(transfer);
 					    } else {
 							return;
 						}		
 					    // std::cout << transfer.toString() << std::endl;
-					    transfersVec.push_back(transfer);
 					}
 				}
 			});
@@ -501,9 +502,9 @@ auto dField<T, C>::initHaloUpdateTable()
 								true,
 								(bk.selfData().myRank + 1) * bk.selfData().numDev, // Target GPU NCCL rank.
 								bk.selfData().communicators[bk.selfData().myRank]);
-
+					    transfersVec.push_back(transfer);
 	                } else if (ByDirection::down == byDirection && bk.isFirstDevice(setIdxSrc)) {
-						if (bk.selfData().myRank = 0) { // First process.
+						if (bk.selfData().myRank == 0) { // First process.
 							return;
 						}
 						Neon::set::MemoryTransfer transfer(
@@ -513,12 +514,11 @@ auto dField<T, C>::initHaloUpdateTable()
 								true,
 								bk.selfData().myRank * bk.selfData().numDev - 1, // Target GPU NCCL rank.
 								bk.selfData().communicators[bk.selfData().myRank - 1]);
+					    transfersVec.push_back(transfer);
 	                } else {
 						return;
-					}
-	
+					}	
 	                // std::cout << transfer.toString() << std::endl;
-	                transfersVec.push_back(transfer);
 	            }
 			});
 	}
@@ -721,13 +721,13 @@ auto dField<T, C>::
                   Neon::Execution            execution)
         const -> Neon::set::Container
 {
-	if (!bk.distributed) {
+	auto const& bk = this->getGrid().getBackend();
+	if (!bk.selfData().distributed) {
 	    // We need to define a graph of Containers
 	    // One for the actual memory transfer
 	    // One for the synchronization
 	    // The order depends on the transfer mode: put or get
 	    Neon::set::Container localDataTransferContainer;
-	    auto const&          bk = this->getGrid().getBackend();
 	
 	    if (stencilSemantic == Neon::set::StencilSemantic::standard) {
 	        auto localTransfers = bk.template newDataSet<std::vector<Neon::set::MemoryTransfer>>();
@@ -813,7 +813,6 @@ auto dField<T, C>::
 	    // The order depends on the transfer mode: put or get
 	    Neon::set::Container localDataTransferContainer;
 	    Neon::set::Container distributedDataTransferContainer;
-	    auto const&          bk = this->getGrid().getBackend();
 	
 	    if (stencilSemantic == Neon::set::StencilSemantic::standard) {
 	        auto localTransfers = bk.template newDataSet<std::vector<Neon::set::MemoryTransfer>>();

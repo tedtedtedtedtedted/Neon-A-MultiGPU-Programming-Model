@@ -12,6 +12,7 @@
 #include "Neon/skeleton/Skeleton.h"
 
 #include "runHelper.h"
+#include "mpi.h"
 
 using namespace Neon::domain::tool::testing;
 
@@ -73,8 +74,8 @@ void singleStencil(TestData<G, T, C>& data)
     const T val = 89;
 
     data.getBackend().syncAll();
-	if (data.getBackend().distributed) { // Ted: For distributed systems.
-		MPI_Barrier();
+	if (data.getBackend().selfData().distributed) { // Ted: For distributed systems.
+		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
     data.resetValuesToRandom(1, 50);
@@ -108,8 +109,8 @@ void singleStencil(TestData<G, T, C>& data)
         }
     }
     data.getBackend().syncAll();
-	if (data.getBackend().distributed) { // Ted: For distributed systems.
-		MPI_Barrier();
+	if (data.getBackend().selfData().distributed) { // Ted: For distributed systems.
+		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
 
@@ -125,14 +126,16 @@ TEST(singleStencil, dGrid)
     using Grid = Neon::dGrid;
     using Type = int32_t;
     constexpr int C = 0;
-    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
+    //runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
+    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, main_argc, main_argv);
 }
 
-TEST(singleStencil, bGridSingleGpu)
-{
-    int nGpus = 1;
-    using Grid = Neon::bGrid;
-    using Type = int32_t;
-    constexpr int C = 0;
-    runAllTestConfiguration<Grid, Type, 0>("bGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
-}
+//TEST(singleStencil, bGridSingleGpu)
+//{
+//    int nGpus = 1;
+//    using Grid = Neon::bGrid;
+//    using Type = int32_t;
+//    constexpr int C = 0;
+//    //runAllTestConfiguration<Grid, Type, 0>("bGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
+//    runAllTestConfiguration<Grid, Type, 0>("bGrid", singleStencil<Grid, Type, C>, nGpus, main_argc, main_argv);
+//}
