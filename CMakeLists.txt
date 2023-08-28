@@ -39,8 +39,22 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+
+# Ted: According to ChatGPT. To link the executable against MPI.
+find_package(MPI REQUIRED)
+include_directories(${MPI_INCLUDE_PATH})
+# Ted: Also the steps below but put it in skeleton-stencil
+# add_executable(your_program your_cuda_code.cu)
+# target_link_libraries(your_program PRIVATE ${MPI_CXX_LIBRARIES})
+
+
 # Ted: According to ChatGPT. For "nccl.h" path.
 include_directories($ENV{NCCL_HOME}/include)
+# Ted: Also the steps below but put it in executables like <skeleton-stencil>
+# add_executable(your_program your_cuda_code.cu)
+# target_link_libraries(your_program PRIVATE $ENV{NCCL_HOME/lib/libnccl.so)
+
+
 
 # Definition of the target interface NeonDeveloperLib
 add_library(NeonDeveloperLib INTERFACE)
