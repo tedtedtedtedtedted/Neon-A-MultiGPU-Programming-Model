@@ -33,8 +33,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 include("${PROJECT_SOURCE_DIR}/cmake/LoadingExternalGitRepositories.cmake")
 
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CUDA_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -58,7 +58,7 @@ include_directories($ENV{NCCL_HOME}/include)
 
 # Definition of the target interface NeonDeveloperLib
 add_library(NeonDeveloperLib INTERFACE)
-target_compile_features(NeonDeveloperLib INTERFACE cxx_std_20)
+target_compile_features(NeonDeveloperLib INTERFACE cxx_std_17)
 
 include("${PROJECT_SOURCE_DIR}/cmake/ManageCompilationFlags.cmake")
 
@@ -96,9 +96,9 @@ add_subdirectory("libNeonSet")
 add_subdirectory("libNeonDomain")
 add_subdirectory("libNeonSkeleton")
 #add_subdirectory("libNeonSolver")
-add_subdirectory("tutorials") # Ted: Uncommented.
-#add_subdirectory("apps")
-#add_subdirectory("benchmarks")
+add_subdirectory("tutorials")
+add_subdirectory("apps")
+add_subdirectory("benchmarks")
 
 
 #-------------------------------------------------------------------#
@@ -128,3 +128,9 @@ message("||  CUDA ARCHS             : ${CMAKE_CUDA_ARCHITECTURES}")
 #message("||  NeonCXXFlags           : ${NeonCXXFlags}")
 #message("||  NeonCUDAFlags          : ${NeonCUDAFlags}")
 message("\\===================================================")
+# Usefull to debug cmake
+# https://jeremimucha.com/2021/01/cmake-fundamentals-part3/
+# get_target_property(interfaceLibs NeonDeveloperLib INTERFACE_COMPILE_OPTIONS)
+# set(info ${interfaceLibs}[CXX_COMPILER_ID])
+# message(STATUS "NeonDeveloperLib INTERFACE_LINK_LIBRARIES: ${info}")
+

@@ -325,13 +325,6 @@ auto FieldBase<T, C>::getClassName() const -> const std::string&
 }
 
 template <typename T, int C>
-auto FieldBase<T, C>::haloUpdateContainer(Neon::set::TransferMode,
-                                          Neon::set::StencilSemantic) const -> Neon::set::Container
-{
-    NEON_THROW_UNSUPPORTED_OPERATION("");
-}
-
-template <typename T, int C>
 FieldBase<T, C>::Storage::Storage(const std::string              FieldBaseUserName,
                                   const std::string              fieldClassName,
                                   const Neon::index_3d&          dimension,
@@ -366,7 +359,7 @@ template <typename T, int C>
 FieldBase<T, C>::Storage::Storage()
     : dimension(0),
       cardinality(0),
-      outsideVal(static_cast<T>(0.0)),
+      outsideVal(T()),
       dataUse(),
       memoryOptions(),
       haloStatus(),

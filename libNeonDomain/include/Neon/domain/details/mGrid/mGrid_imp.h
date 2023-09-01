@@ -16,7 +16,7 @@ auto mGrid::newField(const std::string          name,
 
 
 template <typename LoadingLambda>
-auto mGrid::getContainer(const std::string& name,
+auto mGrid::newContainer(const std::string& name,
                          int                level,
                          index_3d           blockSize,
                          size_t             sharedMem,
@@ -30,7 +30,7 @@ auto mGrid::getContainer(const std::string& name,
 }
 
 template <typename LoadingLambda>
-auto mGrid::getContainer(const std::string& name,
+auto mGrid::newContainer(const std::string& name,
                          int                level,
                          LoadingLambda      lambda) const -> Neon::set::Container
 {

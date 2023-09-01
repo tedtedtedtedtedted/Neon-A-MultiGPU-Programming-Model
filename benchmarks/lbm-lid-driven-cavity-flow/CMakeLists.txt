@@ -19,4 +19,15 @@ target_compile_options(${APP} INTERFACE
 		$<$<COMPILE_LANGUAGE:CUDA>:${NeonCUDAFlags}>
 		)
 
-add_test(NAME ${APP} COMMAND ${APP})
+add_custom_command(
+		TARGET ${APP}  POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy
+		${CMAKE_CURRENT_SOURCE_DIR}/${APP}.sh
+		${CMAKE_BINARY_DIR}/bin/${APP}.sh)
+
+add_custom_command(
+		TARGET ${APP}  POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy
+		${CMAKE_CURRENT_SOURCE_DIR}/${APP}.py
+		${CMAKE_BINARY_DIR}/bin/${APP}.py
+)

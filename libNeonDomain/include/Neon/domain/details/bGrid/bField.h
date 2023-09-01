@@ -18,38 +18,34 @@
 namespace Neon::domain::details::bGrid {
 
 
-template <typename T, int C, int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
+template <typename T, int C, typename SBlock>
 class bField : public Neon::domain::interface::FieldBaseTemplate<T,
                                                                  C,
-                                                                 bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>,
-                                                                 bPartition<T, C, dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>,
+                                                                 bGrid<SBlock>,
+                                                                 bPartition<T, C, SBlock>,
                                                                  int>
 {
-    friend bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>;
+    friend bGrid<SBlock>;
 
    public:
     using Type = T;
-    using Grid = bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>;
-    using Field = bField<T, C, dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>;
-    using Partition = bPartition<T, C, dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>;
-    using Idx = bIndex<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>;
+    using Grid = bGrid<SBlock>;
+    using Field = bField<T, C, SBlock>;
+    using Partition = bPartition<T, C, SBlock>;
+    using Idx = bIndex<SBlock>;
+    using BlockViewGrid = Neon::domain::tool::GridTransformer<details::GridTransformation>::Grid;
+    template <typename TT, int CC = 0>
+    using BlockViewField = BlockViewGrid::template Field<TT, CC>;
 
     using NghIdx = typename Partition::NghIdx;
     using NghData = typename Partition::NghData;
 
-    static constexpr Neon::index_3d dataBlockSize3D = Neon::index_3d(dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ);
-
-    static constexpr Neon::int8_3d DataBlockSize = Neon::int8_3d(dataBlockSizeX,
-                                                                 dataBlockSizeY,
-                                                                 dataBlockSizeZ);
-
-
-    bField(const std::string&         fieldUserName,
-           Neon::DataUse              dataUse,
-           const Neon::MemoryOptions& memoryOptions,
-           const Grid&                grid,
-           int                        cardinality,
-           T                          inactiveValue);
+    bField(const std::string&  fieldUserName,
+           Neon::DataUse       dataUse,
+           Neon::MemoryOptions memoryOptions,
+           const Grid&         grid,
+           int                 cardinality,
+           T                   inactiveValue);
 
     bField();
 
@@ -81,19 +77,14 @@ class bField : public Neon::domain::interface::FieldBaseTemplate<T,
                        Neon::Execution            execution)
         const -> Neon::set::Container;
 
+    auto getMemoryField() -> BlockViewGrid::Field<T, C>&;
+
 
    private:
     auto getRef(const Neon::index_3d& idx, const int& cardinality) const -> T&;
 
     auto initHaloUpdateTable() -> void;
 
-
-    //
-    //    enum PartitionBackend
-    //    {
-    //        cpu = 0,
-    //        gpu = 1,
-    //    };
 
     struct Data
     {
@@ -114,10 +105,9 @@ class bField : public Neon::domain::interface::FieldBaseTemplate<T,
             static constexpr int nConfigs = 2;
         };
 
-        std::shared_ptr<Grid>      grid;
-        BlockViewGrid::Field<T, C> memoryField;
-
-        int mCardinality;
+        std::shared_ptr<Grid> grid;
+        BlockViewField<T, 0>  memoryField;
+        int                   cardinality;
 
         //        Neon::domain::tool::HaloTable1DPartitioning   latticeHaloUpdateTable;
         Neon::domain::tool::HaloTable1DPartitioning soaHaloUpdateTable;

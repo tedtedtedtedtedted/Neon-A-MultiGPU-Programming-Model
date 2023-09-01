@@ -1,6 +1,8 @@
 #include "Config.h"
 #include "D3Q19.h"
+#include "Neon/domain/bGrid.h"
 #include "Neon/domain/dGrid.h"
+#include "Neon/domain/eGrid.h"
 
 #include "CellType.h"
 #include "LbmIteration.h"
@@ -36,12 +38,12 @@ auto run(Config& config,
         NEON_THROW(exce);
     }();
 
-    if(!backendWasReported) {
+    if (!backendWasReported) {
         metrics::recordBackend(bk, report);
         backendWasReported = true;
     }
 
-    Neon::double_3d ulid(0., 1., 0.);
+    Neon::double_3d ulid(1., 0., 0.);
     Lattice         lattice(bk);
 
     // Neon Grid and Fields initialization
@@ -77,19 +79,19 @@ auto run(Config& config,
                   flag,
                   lbmParameters.omega);
 
-    auto exportRhoAndU = [&bk, &rho, &u, &iteration, &flag](int iterationId) {
+    auto exportRhoAndU = [&bk, &rho, &u, &iteration, &flag, &grid, &ulid](int iterationId) {
         if ((iterationId) % 100 == 0) {
             auto& f = iteration.getInput();
-            bk.syncAll();
-            Neon::set::HuOptions hu(Neon::set::TransferMode::get,
-                                    false,
-                                    Neon::Backend::mainStreamIdx,
-                                    Neon::set::StencilSemantic::standard);
+            {
+                bk.syncAll();
+                f.newHaloUpdate(Neon::set::StencilSemantic::standard,
+                                Neon::set::TransferMode::get,
+                                Neon::Execution::device)
+                    .run(Neon::Backend::mainStreamIdx);
+                bk.syncAll();
+            }
 
-            f.haloUpdate(hu);
-            bk.syncAll();
             auto container = LbmContainers<Lattice, PopulationField, ComputeFP>::computeRhoAndU(f, flag, rho, u);
-
             container.run(Neon::Backend::mainStreamIdx);
             u.updateHostData(Neon::Backend::mainStreamIdx);
             rho.updateHostData(Neon::Backend::mainStreamIdx);
@@ -104,6 +106,47 @@ auto run(Config& config,
             rho.ioToVtk("rho_" + iterIdStr, "rho", false);
             // iteration.getInput().ioToVtk("pop_" + iterIdStr, "u", false);
             // flag.ioToVtk("flag_" + iterIdStr, "u", false);
+
+            std::vector<std::pair<double, double>> xPosVal;
+            std::vector<std::pair<double, double>> yPosVal;
+
+            const double scale = 1.0 / ulid.v[0];
+
+            const Neon::index_3d grid_dim = grid.getDimension();
+            u.forEachActiveCell([&](const Neon::index_3d& id, const int& card, auto& val) {
+                if (id.x == grid_dim.x / 2 && id.z == grid_dim.z / 2) {
+                    if (card == 0) {
+                        yPosVal.push_back({static_cast<double>(id.v[1]) / static_cast<double>(grid_dim.y), val * scale});
+                    }
+                }
+
+                if (id.y == grid_dim.y / 2 && id.z == grid_dim.z / 2) {
+                    if (card == 1) {
+                        xPosVal.push_back({static_cast<double>(id.v[0]) / static_cast<double>(grid_dim.x), val * scale});
+                    }
+                }
+            },
+                                Neon::computeMode_t::seq);
+
+            // sort the position so the linear interpolation works
+            std::sort(xPosVal.begin(), xPosVal.end(), [=](std::pair<double, double>& a, std::pair<double, double>& b) {
+                return a.first < b.first;
+            });
+
+            std::sort(yPosVal.begin(), yPosVal.end(), [=](std::pair<double, double>& a, std::pair<double, double>& b) {
+                return a.first < b.first;
+            });
+
+            auto writeToFile = [](const std::vector<std::pair<double, double>>& posVal, std::string filename) {
+                std::ofstream file;
+                file.open(filename);
+                for (auto v : posVal) {
+                    file << v.first << " " << v.second << "\n";
+                }
+                file.close();
+            };
+            writeToFile(yPosVal, "NeonUniformLBM_" + iterIdStr + "_Y.dat");
+            writeToFile(xPosVal, "NeonUniformLBM_" + iterIdStr + "_X.dat");
         }
     };
 
@@ -131,7 +174,7 @@ auto run(Config& config,
                 idx.y == 0 || idx.y == dim.y - 1 ||
                 idx.z == 0 || idx.z == dim.z - 1) {
 
-                if (idx.x == dim.x - 1) {
+                if (idx.y == dim.y - 1) {
                     val = -6. * t.at(k) * config.ulb *
                           (c.at(k).v[0] * ulid.v[0] +
                            c.at(k).v[1] * ulid.v[1] +
@@ -151,7 +194,7 @@ auto run(Config& config,
                 idx.y == 0 || idx.y == dim.y - 1 ||
                 idx.z == 0 || idx.z == dim.z - 1) {
 
-                if (idx.x == dim.x - 1) {
+                if (idx.y == dim.y - 1) {
                     val = -6. * t.at(k) * config.ulb *
                           (c.at(k).v[0] * ulid.v[0] +
                            c.at(k).v[1] * ulid.v[1] +
@@ -174,7 +217,7 @@ auto run(Config& config,
 
                 flagVal.classification = CellType::bounceBack;
 
-                if (idx.x == dim.x - 1) {
+                if (idx.y == dim.y - 1) {
                     flagVal.classification = CellType::movingWall;
                 }
             }
@@ -184,14 +227,15 @@ auto run(Config& config,
         outPop.updateDeviceData(Neon::Backend::mainStreamIdx);
 
         flag.updateDeviceData(Neon::Backend::mainStreamIdx);
-        bk.syncAll();
-        Neon::set::HuOptions hu(Neon::set::TransferMode::get,
-                                false,
-                                Neon::Backend::mainStreamIdx,
-                                Neon::set::StencilSemantic::standard);
+        {
+            bk.syncAll();
+            flag.newHaloUpdate(Neon::set::StencilSemantic::standard /*semantic*/,
+                               Neon::set::TransferMode::get /*transferMode*/,
+                               Neon::Execution::device /*execution*/)
+                .run(Neon::Backend::mainStreamIdx);
+            bk.syncAll();
+        }
 
-        flag.haloUpdate(hu);
-        bk.syncAll();
         auto container = LbmContainers<Lattice, PopulationField, ComputeFP>::computeWallNghMask(flag, flag);
         container.run(Neon::Backend::mainStreamIdx);
         bk.syncAll();
@@ -249,12 +293,11 @@ auto runFilterStoreType(Config& config,
     -> void
 {
     if (config.storeType == "double") {
-        return runFilterComputeType<Neon::dGrid, double>(config, report);
+        return runFilterComputeType<Grid, double>(config, report);
     }
     if (config.storeType == "float") {
-        return runFilterComputeType<Neon::dGrid, float>(config, report);
+        return runFilterComputeType<Grid, float>(config, report);
     }
-    NEON_DEV_UNDER_CONSTRUCTION("");
 }
 }  // namespace details
 
@@ -265,10 +308,10 @@ auto run(Config& config,
         return details::runFilterStoreType<Neon::dGrid>(config, report);
     }
     if (config.gridType == "eGrid") {
-        NEON_DEV_UNDER_CONSTRUCTION("");
+        return details::runFilterStoreType<Neon::eGrid>(config, report);
     }
     if (config.gridType == "bGrid") {
-        NEON_DEV_UNDER_CONSTRUCTION("");
+        return details::runFilterStoreType<Neon::bGrid>(config, report);
     }
 }
 }  // namespace CavityTwoPop

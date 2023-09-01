@@ -2,35 +2,38 @@
 
 namespace Neon::domain::details::bGrid {
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
+template <typename SBlock>
 template <typename ActiveCellLambda>
-bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend&         backend,
-                                                             const Neon::int32_3d&        domainSize,
-                                                             const ActiveCellLambda       activeCellLambda,
-                                                             const Neon::domain::Stencil& stencil,
-                                                             const double_3d&             spacingData,
-                                                             const double_3d&             origin)
+bGrid<SBlock>::bGrid(const Neon::Backend&         backend,
+                     const Neon::int32_3d&        domainSize,
+                     const ActiveCellLambda       activeCellLambda,
+                     const Neon::domain::Stencil& stencil,
+                     const double_3d&             spacingData,
+                     const double_3d&             origin)
     : bGrid(backend, domainSize, activeCellLambda, stencil, 1, spacingData, origin)
 {
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
+template <typename SBlock>
 template <typename ActiveCellLambda>
-bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend&         backend,
-                                                             const Neon::int32_3d&        domainSize,
-                                                             const ActiveCellLambda       activeCellLambda,
-                                                             const Neon::domain::Stencil& stencil,
-                                                             const int                    voxelSpacing,
-                                                             const double_3d&             spacingData,
-                                                             const double_3d&             origin)
+bGrid<SBlock>::bGrid(const Neon::Backend&         backend,
+                     const Neon::int32_3d&        domainSize,
+                     const ActiveCellLambda       activeCellLambda,
+                     const Neon::domain::Stencil& stencil,
+                     const int                    multiResDiscreteIdxSpacing,
+                     const double_3d&             spacingData,
+                     const double_3d&             origin)
 {
+
 
     mData = std::make_shared<Data>();
     mData->init(backend);
 
-    mData->voxelSpacing = voxelSpacing;
+    mData->mMultiResDiscreteIdxSpacing = multiResDiscreteIdxSpacing;
     mData->stencil = stencil;
-    const index_3d defaultKernelBlockSize(dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ);
+    const index_3d defaultKernelBlockSize(SBlock::memBlockSizeX,
+                                          SBlock::memBlockSizeY,
+                                          SBlock::memBlockSizeZ);
 
     {
         auto nElementsPerPartition = backend.devSet().template newDataSet<size_t>(0);
@@ -42,7 +45,7 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
                               stencil,
                               nElementsPerPartition,
                               defaultKernelBlockSize,
-                              voxelSpacing,
+                              multiResDiscreteIdxSpacing,
                               origin);
     }
 
@@ -52,15 +55,14 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
             backend,
             activeCellLambda,
             [](Neon::index_3d /*idx*/) { return false; },
-            dataBlockSize3D,
+            SBlock::memBlockSize3D.template newType<int32_t>(),
             domainSize,
             Neon::domain::Stencil::s27_t(false),
-            1);
+            multiResDiscreteIdxSpacing);
 
         mData->mDataBlockOriginField = mData->partitioner1D.getGlobalMapping();
         mData->mStencil3dTo1dOffset = mData->partitioner1D.getStencil3dTo1dOffset();
         mData->memoryGrid = mData->partitioner1D.getMemoryGrid();
-        mData->partitioner1D.getDenseMeta(mData->denseMeta);
     }
 
     {  // BlockViewGrid
@@ -69,69 +71,67 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
             mData->partitioner1D.getBlockSpan(),
             mData->partitioner1D,
             Neon::domain::Stencil::s27_t(false),
-            spacingData * dataBlockSize3D,
+            spacingData * SBlock::memBlockSize3D,
             origin);
 
-        mData->blockViewGrid = BlockViewGrid(egrid);
+        mData->blockViewGrid = BlockView::Grid(egrid);
     }
 
     {  // Active bitmask
-        int requiredWords = Span::getRequiredWordsForBlockBitMask();
-        mData->activeBitMask = mData->blockViewGrid.template newField<typename Span::BitMaskWordType>("BitMask",
-                                                                                                      requiredWords,
-                                                                                                      0,
-                                                                                                      Neon::DataUse::HOST_DEVICE, backend.getMemoryOptions(Span::activeMaskMemoryLayout));
+        mData->activeBitField = mData->blockViewGrid.template newField<typename SBlock::BitMask, 1>(
+            "BlockViewBitMask",
+            1,
+            [] {
+                typename SBlock::BitMask outsideBitMask;
+                outsideBitMask.reset();
+                return outsideBitMask;
+            }(),
+            Neon::DataUse::HOST_DEVICE, backend.getMemoryOptions(BlockView::layout));
 
         mData->mNumActiveVoxel = backend.devSet().template newDataSet<uint64_t>();
 
-        mData->activeBitMask
+        mData->activeBitField
             .getGrid()
             .template newContainer<Neon::Execution::host>(
                 "activeBitMaskInit",
-                [&](Neon::set::Loader& loader) {
-                    auto bitMask = loader.load(mData->activeBitMask);
-                    return [&, bitMask](const auto& bitMaskIdx) mutable {
-                        auto       prtIdx = bitMask.prtID();
-                        int        coutActive = 0;
-                        auto const blockOrigin = bitMask.getGlobalIndex(bitMaskIdx);
+                [&, this](Neon::set::Loader& loader) {
+                    auto bitMaskPartition = loader.load(mData->activeBitField);
+                    return [&, bitMaskPartition](const auto& bitMaskIdx) mutable {
+                        auto                      prtIdx = bitMaskPartition.prtID();
+                        int                       countActive = 0;
+                        auto const                blockOrigin = bitMaskPartition.getGlobalIndex(bitMaskIdx);
+                        typename SBlock::BitMask& bitMask = bitMaskPartition(bitMaskIdx, 0);
+                        bitMask.reset();
 
-                        for (int c = 0; c < bitMask.cardinality(); c++) {
-                            bitMask(bitMaskIdx, c) = 0;
-                        }
-
-                        for (int k = 0; k < dataBlockSize3D.z; k++) {
-                            for (int j = 0; j < dataBlockSize3D.y; j++) {
-                                for (int i = 0; i < dataBlockSize3D.x; i++) {
-
-                                    Neon::int32_3d                 localPosition(i, j, k);
-                                    typename Span::BitMaskWordType mask;
-                                    uint32_t                       wordIdx;
-
-                                    Span::getMaskAndWordIdforBlockBitMask(i, j, k, NEON_OUT mask, NEON_OUT wordIdx);
-                                    auto globalPosition = localPosition + blockOrigin;
-                                    bool isInDomain = globalPosition < domainSize;
-                                    bool isActive = activeCellLambda(globalPosition);
+                        for (int k = 0; k < SBlock::memBlockSize3D.template newType<int32_t>().z; k++) {
+                            for (int j = 0; j < SBlock::memBlockSize3D.template newType<int32_t>().y; j++) {
+                                for (int i = 0; i < SBlock::memBlockSize3D.template newType<int32_t>().x; i++) {
+                                    auto       globalPosition = blockOrigin + Neon::int32_3d(i * this->mData->mMultiResDiscreteIdxSpacing,
+                                                                                       j * this->mData->mMultiResDiscreteIdxSpacing,
+                                                                                       k * this->mData->mMultiResDiscreteIdxSpacing);
+                                    bool const isInDomain = globalPosition < domainSize * this->mData->mMultiResDiscreteIdxSpacing;
+                                    bool const isActive = activeCellLambda(globalPosition);
                                     if (isActive && isInDomain) {
-                                        coutActive++;
-                                        auto value = bitMask(bitMaskIdx, wordIdx);
-                                        value = value | mask;
-                                        bitMask(bitMaskIdx, wordIdx) = value;
+                                        countActive++;
+                                        bitMask.setActive(i, j, k);
                                     }
                                 }
                             }
                         }
 #pragma omp critical
                         {
-                            mData->mNumActiveVoxel[prtIdx] += coutActive;
+                            this->mData->mNumActiveVoxel[prtIdx] += countActive;
                         }
                     };
                 })
             .run(Neon::Backend::mainStreamIdx);
 
-        mData->activeBitMask.updateDeviceData(Neon::Backend::mainStreamIdx);
-        mData->activeBitMask.newHaloUpdate(Neon::set::StencilSemantic::standard,
-                                           Neon::set::TransferMode::put,
-                                           Neon::Execution::device)
+
+        mData->activeBitField.updateDeviceData(Neon::Backend::mainStreamIdx);
+        this->getBackend().sync(Neon::Backend::mainStreamIdx);
+        mData->activeBitField.newHaloUpdate(Neon::set::StencilSemantic::standard,
+                                            Neon::set::TransferMode::put,
+                                            Neon::Execution::device)
             .run(Neon::Backend::mainStreamIdx);
     }
 
@@ -155,11 +155,11 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
                                                                   BlockIdx                                  blockNghIdx = Span::getInvalidBlockId();
                                                                   typename decltype(blockConnectivity)::Idx nghIdx;
                                                                   Neon::int8_3d                             stencilPoint(i - int8_t(1),
-                                                                                                                         j - int8_t(1),
-                                                                                                                         k - int8_t(1));
+                                                                                             j - int8_t(1),
+                                                                                             k - int8_t(1));
                                                                   bool                                      isValid = blockConnectivity.getNghIndex(idx, stencilPoint, nghIdx);
                                                                   if (isValid) {
-                                                                      blockNghIdx = nghIdx.helpGet();
+                                                                      blockNghIdx = static_cast<BlockIdx>(nghIdx.helpGet());
                                                                   }
                                                                   blockConnectivity(idx, targetDirection) = blockNghIdx;
                                                               }
@@ -181,20 +181,20 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
             case Neon::DataView::STANDARD: {
                 span.mFirstDataBlockOffset = 0;
                 span.mDataView = dw;
-                span.mActiveMask = mData->activeBitMask.getPartition(execution, setIdx, dw).mem();
+                span.mActiveMask = mData->activeBitField.getPartition(execution, setIdx, dw).mem();
                 break;
             }
             case Neon::DataView::BOUNDARY: {
                 span.mFirstDataBlockOffset = mData->partitioner1D.getSpanClassifier().countInternal(setIdx);
                 span.mDataView = dw;
-                span.mActiveMask = mData->activeBitMask.getPartition(execution, setIdx, dw).mem();
+                span.mActiveMask = mData->activeBitField.getPartition(execution, setIdx, dw).mem();
 
                 break;
             }
             case Neon::DataView::INTERNAL: {
                 span.mFirstDataBlockOffset = 0;
                 span.mDataView = dw;
-                span.mActiveMask = mData->activeBitMask.getPartition(execution, setIdx, dw).mem();
+                span.mActiveMask = mData->activeBitField.getPartition(execution, setIdx, dw).mem();
                 break;
             }
             default: {
@@ -213,7 +213,7 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
         for (int i = 0; i < stencil.nNeighbours(); ++i) {
             for (int devIdx = 0; devIdx < backend.devSet().setCardinality(); devIdx++) {
                 index_3d      pLong = stencil.neighbours()[i];
-                Neon::int8_3d pShort(pLong.x, pLong.y, pLong.z);
+                Neon::int8_3d pShort = pLong.newType<int8_t>();
                 mData->stencilIdTo3dOffset.eRef(devIdx, i) = pShort;
             }
         }
@@ -225,7 +225,7 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
                           domainSize,
                           Neon::domain::Stencil(),
                           mData->mNumActiveVoxel,
-                          dataBlockSize3D,
+                          SBlock::memBlockSize3D.template newType<int32_t>(),
                           spacingData,
                           origin);
     {  // setting launchParameters
@@ -237,34 +237,47 @@ bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::bGrid(const Neon::Backend
                 auto eDomainGridSize = launchSingleDev.domainGrid();
                 assert(eDomainGridSize.y == 1);
                 assert(eDomainGridSize.z == 1);
-                int nBlocks = eDomainGridSize.x;
+                int nBlocks = static_cast<int>(eDomainGridSize.x);
                 bLaunchParameters.get(setIdx).set(Neon::sys::GpuLaunchInfo::mode_e::cudaGridMode,
-                                                  nBlocks, dataBlockSize3D, 0);
+                                                  nBlocks, SBlock::memBlockSize3D.template newType<int32_t>(), 0);
             });
         });
     }
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
+template <typename SBlock>
 template <typename T, int C>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::newField(const std::string          name,
-                                                                     int                        cardinality,
-                                                                     T                          inactiveValue,
-                                                                     Neon::DataUse              dataUse,
-                                                                      Neon::MemoryOptions memoryOptions) const -> Field<T, C>
+auto bGrid<SBlock>::newField(const std::string   name,
+                             int                 cardinality,
+                             T                   inactiveValue,
+                             Neon::DataUse       dataUse,
+                             Neon::MemoryOptions memoryOptions) const -> Field<T, C>
 {
     memoryOptions = this->getDevSet().sanitizeMemoryOption(memoryOptions);
     Field<T, C> field(name, dataUse, memoryOptions, *this, cardinality, inactiveValue);
     return field;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
+template <typename SBlock>
+template <typename T, int C>
+auto bGrid<SBlock>::newBlockViewField(const std::string   name,
+                                      int                 cardinality,
+                                      T                   inactiveValue,
+                                      Neon::DataUse       dataUse,
+                                      Neon::MemoryOptions memoryOptions) const -> BlockView::Field<T, C>
+{
+    memoryOptions = this->getDevSet().sanitizeMemoryOption(memoryOptions);
+    BlockView::Field<T, C> blockViewField = mData->blockViewGrid.template newField<T, C>(name, cardinality, inactiveValue, dataUse, memoryOptions);
+    return blockViewField;
+}
+
+template <typename SBlock>
 template <Neon::Execution execution,
           typename LoadingLambda>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::newContainer(const std::string& name,
-                                                                         index_3d           blockSize,
-                                                                         size_t             sharedMem,
-                                                                         LoadingLambda      lambda) const -> Neon::set::Container
+auto bGrid<SBlock>::newContainer(const std::string& name,
+                                 index_3d           blockSize,
+                                 size_t             sharedMem,
+                                 LoadingLambda      lambda) const -> Neon::set::Container
 {
     Neon::set::Container kContainer = Neon::set::Container::factory<execution>(name,
                                                                                Neon::set::internal::ContainerAPI::DataViewSupport::on,
@@ -275,11 +288,11 @@ auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::newContainer(const s
     return kContainer;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
+template <typename SBlock>
 template <Neon::Execution execution,
           typename LoadingLambda>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::newContainer(const std::string& name,
-                                                                         LoadingLambda      lambda) const -> Neon::set::Container
+auto bGrid<SBlock>::newContainer(const std::string& name,
+                                 LoadingLambda      lambda) const -> Neon::set::Container
 {
     const Neon::index_3d& defaultBlockSize = this->getDefaultBlock();
     Neon::set::Container  kContainer = Neon::set::Container::factory<execution>(name,
@@ -287,54 +300,65 @@ auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::newContainer(const s
                                                                                *this,
                                                                                lambda,
                                                                                defaultBlockSize,
-                                                                               [](const Neon::index_3d&) { return size_t(0); });
+                                                                               [](const Neon::index_3d&) { return 0; });
     return kContainer;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::
-    helpGetBlockViewGrid()
-        const -> BlockViewGrid&
+template <typename SBlock>
+auto bGrid<SBlock>::
+    getBlockViewGrid()
+        const -> BlockView::Grid&
 {
     return mData->blockViewGrid;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::
-    helpGetActiveBitMask()
-        const -> BlockViewGrid::Field<uint64_t, 0>&
+template <typename SBlock>
+auto bGrid<SBlock>::
+    getActiveBitMask()
+        const -> BlockView::Field<typename SBlock::BitMask, 1>&
 {
-    return mData->activeBitMask;
+    return mData->activeBitField;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::
+/**
+ * Helper function to retrieve the discrete index spacing used for the multi-resolution
+ */
+template <typename SBlock>
+template <int dummy>
+auto bGrid<SBlock>::helGetMultiResDiscreteIdxSpacing() const
+    -> std::enable_if_t<dummy == 1, int>
+{
+    return mData->mMultiResDiscreteIdxSpacing;
+}
+
+template <typename SBlock>
+auto bGrid<SBlock>::
     helpGetBlockConnectivity()
-        const -> BlockViewGrid::Field<BlockIdx, 27>&
+        const -> BlockView::Field<BlockIdx, 27>&
 {
     return mData->blockConnectivity;
 }
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::
+template <typename SBlock>
+auto bGrid<SBlock>::
     helpGetDataBlockOriginField()
         const -> Neon::aGrid::Field<index_3d, 0>&
 {
     return mData->mDataBlockOriginField;
 }
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getSpan(Neon::Execution execution,
-                                                                    SetIdx          setIdx,
-                                                                    Neon::DataView  dataView) -> const bGrid::Span&
+template <typename SBlock>
+auto bGrid<SBlock>::getSpan(Neon::Execution execution,
+                            SetIdx          setIdx,
+                            Neon::DataView  dataView) -> const bGrid::Span&
 {
     return mData->spanTable.getSpan(execution, setIdx, dataView);
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::~bGrid()
+template <typename SBlock>
+bGrid<SBlock>::~bGrid()
 {
 }
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getSetIdx(const index_3d& idx) const -> int32_t
+template <typename SBlock>
+auto bGrid<SBlock>::getSetIdx(const index_3d& idx) const -> int32_t
 {
     typename GridBaseTemplate::CellProperties cellProperties;
 
@@ -345,10 +369,10 @@ auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getSetIdx(const inde
     Neon::SetIdx setIdx = cellProperties.getSetIdx();
     return setIdx;
 }
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getLaunchParameters(Neon::DataView dataView,
-                                                                                const index_3d&,
-                                                                                const size_t& sharedMem) const -> Neon::set::LaunchParameters
+template <typename SBlock>
+auto bGrid<SBlock>::getLaunchParameters(Neon::DataView dataView,
+                                        const index_3d&,
+                                        const size_t& sharedMem) const -> Neon::set::LaunchParameters
 {
     auto res = mData->launchParametersTable.get(dataView);
     res.forEachSeq([&](SetIdx const& /*setIdx*/,
@@ -358,38 +382,36 @@ auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getLaunchParameters(
     return res;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::
+template <typename SBlock>
+auto bGrid<SBlock>::
     helpGetStencilIdTo3dOffset()
         const -> Neon::set::MemSet<Neon::int8_3d>&
 {
     return mData->stencilIdTo3dOffset;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::isInsideDomain(const index_3d& idx) const -> bool
+template <typename SBlock>
+auto bGrid<SBlock>::isInsideDomain(const index_3d& idx) const -> bool
 {
     // 1. check if the block is active
-    const index_3d blockIdx3d = idx / dataBlockSize3D;
-    auto           blockProperties = mData->blockViewGrid.getProperties(blockIdx3d);
+    const BlockView::index_3d blockIdx3d = idx / (SBlock::memBlockSize3D.template newType<int32_t>() * mData->mMultiResDiscreteIdxSpacing);
+    auto                      blockProperties = mData->blockViewGrid.getProperties(blockIdx3d);
 
     if (!blockProperties.isInside()) {
         return false;
     }
-    // 2. The block is active, check the element on the block
-    uint32_t                       wordCardinality;
-    typename Span::BitMaskWordType mask;
-    Span::getMaskAndWordIdforBlockBitMask(idx.x % dataBlockSize3D.x,
-                                          idx.y % dataBlockSize3D.y,
-                                          idx.z % dataBlockSize3D.z,
-                                          NEON_OUT mask,
-                                          NEON_OUT wordCardinality);
-    auto activeBits = mData->activeBitMask.getReference(blockIdx3d, int(wordCardinality));
-    return (activeBits & mask) != 0;
+    // 2. The block is active, check the element in the block
+    typename SBlock::BitMask const& bitMask = mData->activeBitField.getReference(blockIdx3d, 0);
+
+    bool isActive = bitMask.isActive((idx.x / mData->mMultiResDiscreteIdxSpacing) % SBlock::memBlockSize3D.x,
+                                     (idx.y / mData->mMultiResDiscreteIdxSpacing) % SBlock::memBlockSize3D.y,
+                                     (idx.z / mData->mMultiResDiscreteIdxSpacing) % SBlock::memBlockSize3D.z);
+    return isActive;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getProperties(const index_3d& idx) const -> GridBaseTemplate::CellProperties
+template <typename SBlock>
+auto bGrid<SBlock>::getProperties(const index_3d& idx)
+    const -> typename GridBaseTemplate::CellProperties
 {
     typename GridBaseTemplate::CellProperties cellProperties;
 
@@ -401,7 +423,7 @@ auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getProperties(const 
     if (this->getDevSet().setCardinality() == 1) {
         cellProperties.init(0, DataView::INTERNAL);
     } else {
-        const index_3d blockIdx3d = idx / dataBlockSize3D;
+        const index_3d blockIdx3d = idx / SBlock::memBlockSize3D.template newType<int32_t>();
         auto           blockViewProperty = mData->blockViewGrid.getProperties(blockIdx3d);
 
         cellProperties.init(blockViewProperty.getSetIdx(),
@@ -410,19 +432,25 @@ auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::getProperties(const 
     return cellProperties;
 }
 
-template <int8_t dataBlockSizeX, int8_t dataBlockSizeY, int8_t dataBlockSizeZ>
-auto bGrid<dataBlockSizeX, dataBlockSizeY, dataBlockSizeZ>::helpGetSetIdxAndGridIdx(Neon::index_3d idx)
+template <typename SBlock>
+auto bGrid<SBlock>::helpGetSetIdxAndGridIdx(Neon::index_3d idx)
     const -> std::tuple<Neon::SetIdx, Idx>
 {
-    const index_3d blockIdx3d = idx / dataBlockSize3D;
+    const index_3d blockIdx3d = idx / (SBlock::memBlockSize3D.template newType<int32_t>() * mData->mMultiResDiscreteIdxSpacing);
     auto [setIdx, bvGridIdx] = mData->blockViewGrid.helpGetSetIdxAndGridIdx(blockIdx3d);
     Idx bIdx;
     bIdx.mDataBlockIdx = bvGridIdx.helpGet();
-    bIdx.mInDataBlockIdx.x = idx.x % dataBlockSize3D.x;
-    bIdx.mInDataBlockIdx.y = idx.y % dataBlockSize3D.y;
-    bIdx.mInDataBlockIdx.z = idx.z % dataBlockSize3D.z;
+    bIdx.mInDataBlockIdx.x = static_cast<typename Idx::InDataBlockIdx::Integer>((idx.x / mData->mMultiResDiscreteIdxSpacing) % SBlock::memBlockSize3D.x);
+    bIdx.mInDataBlockIdx.y = static_cast<typename Idx::InDataBlockIdx::Integer>((idx.y / mData->mMultiResDiscreteIdxSpacing) % SBlock::memBlockSize3D.y);
+    bIdx.mInDataBlockIdx.z = static_cast<typename Idx::InDataBlockIdx::Integer>((idx.z / mData->mMultiResDiscreteIdxSpacing) % SBlock::memBlockSize3D.z);
 
     return {setIdx, bIdx};
+}
+
+template <typename SBlock>
+auto bGrid<SBlock>::helpGetPartitioner1D() -> Neon::domain::tool::Partitioner1D&
+{
+    return mData->partitioner1D;
 }
 
 }  // namespace Neon::domain::details::bGrid

@@ -159,7 +159,7 @@ class TestData
     Neon::index_3d                           mDimension;
     Neon::set::TransferMode                  mTransferMode = Neon::set::TransferMode::put;
     Neon::set::StencilSemantic               mStencilSemantic = Neon::set::StencilSemantic::standard;
-    Neon::MemoryOptions          mMemoryOptions;
+    Neon::MemoryOptions                      mMemoryOptions;
     MemoryOptions                            getMemoryOptions() const;
 };
 
@@ -181,8 +181,8 @@ TestData<G, T, C>::TestData(const Neon::Backend&         backend,
                             int                          cardinality,
                             Neon::MemoryOptions          memoryOptions,
                             Neon::domain::tool::Geometry geometry,
-                            double                       domainRatio,
-                            double                       hollowRatio,
+                            double                       domainRatio_,
+                            double                       hollowRatio_,
                             const domain::Stencil&       stencil,
                             Neon::set::TransferMode      transferMode,
                             Neon::set::StencilSemantic   stencilSemantic,
@@ -196,8 +196,8 @@ TestData<G, T, C>::TestData(const Neon::Backend&         backend,
     mMemoryOptions=memoryOptions;
     Neon::domain::tool::GeometryMask geometryMask(geometry,
                                                   dimension,
-                                                  domainRatio,
-                                                  hollowRatio);
+                                                  domainRatio_,
+                                                  hollowRatio_);
 
     const IODense<uint8_t, int> maskDense = geometryMask.getIODenseMask();
 

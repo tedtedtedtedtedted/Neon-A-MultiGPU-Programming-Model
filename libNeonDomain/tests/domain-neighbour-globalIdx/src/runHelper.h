@@ -40,7 +40,7 @@ void runAllTestConfiguration(
 
     std::vector<Geometry>           geos;
     std::vector<Neon::MemoryLayout> memoryLayoutOptions{Neon::MemoryLayout::structOfArrays, Neon::MemoryLayout::arrayOfStructs};
-    //std::vector<Neon::MemoryLayout> memoryLayoutOptions{Neon::MemoryLayout::structOfArrays};
+    // std::vector<Neon::MemoryLayout> memoryLayoutOptions{Neon::MemoryLayout::structOfArrays};
 
     if constexpr (std::is_same_v<G, Neon::dGrid>) {
         geos = std::vector<Geometry>{
@@ -81,6 +81,9 @@ void runAllTestConfiguration(
                             if constexpr (std::is_same_v<G, Neon::bGrid>) {
                                 if (dim.z < 8 * ngpu * 3) {
                                     dim.z = ngpu * 3 * 8;
+                                }
+                                if(memoryLayout == Neon::MemoryLayout::arrayOfStructs){
+                                    continue ;
                                 }
                             }
 

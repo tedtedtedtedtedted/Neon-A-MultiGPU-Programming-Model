@@ -8,6 +8,34 @@
 
 namespace Neon::domain::tool {
 
+/**
+ * Abstraction for a partitioner on a 1D domain.
+ *
+ * Partitioning is executed over the cartesian index space of the domain.
+ * The Partitioner works at the block granularity. The block size is defined by the user.
+ *
+ * The partitioning is done in thee steps:
+ * a. [DOMAIN DECOMPOSITION] - Projecting of the blocks into the Z-axis and then applying a uniform partitioning schema.
+ *    Definition of the span of each partition is the final result of this step.
+ *
+ * b. [CLASSIFIER] - For each partition, the indexes in a partition span are classified twice:
+ *    - First, the indexes are classified according to the data view configuration.
+ *       - INTERNAL: The span is fully contained in the partition.
+ *       - BOUNDARY: The span is partially contained in the partition.
+ *       - GHOST: The span is not contained in the partition.
+ *    - Second, the indexes are classified according to the boundary conditions. This is a user driven classification
+ *
+ * c. [LAYOUT] - The final step is to layout the indexes in memory, i.e. decide for each index its position in a 1D array.
+ *
+ * The final layout of each partitioning will look like the following:
+ *
+ * --------------------------------------------------------------------
+ * | Internal  |       Boundary         |            Ghost            |
+ * |           |    UP     |     DW     |      UP      |      Dw      |
+ * | Bulk | Bc | Bulk | Bc | Bulk | Bc  | Bulk |  Bc   | Bulk |   Bc  |
+ * --------------------------------------------------------------------
+ *
+ */
 class Partitioner1D
 {
    public:
@@ -42,13 +70,13 @@ class Partitioner1D
         DenseMeta(Neon::index_3d const& d)
         {
             dim = d;
-            index = std::vector<int32_t>(dim.rMulTyped<size_t>(), -1);
+            index.resize(dim.rMulTyped<size_t>(), -1);
             invalidMeta.setIdx = -1;
             invalidMeta.index = -1;
             invalidMeta.dw = Neon::DataView::STANDARD;
         }
 
-        auto get(Neon::int32_3d idx)
+        auto get(Neon::int32_3d idx) const
             -> Meta const&
         {
             size_t  pitch = idx.mPitch(dim);
@@ -56,7 +84,7 @@ class Partitioner1D
             if (dataIdx == -1) {
                 return invalidMeta;
             }
-            Meta& valid = data[dataIdx];
+            const Meta& valid = data[dataIdx];
             return valid;
         }
 
@@ -75,67 +103,67 @@ class Partitioner1D
         Meta                 invalidMeta;
     };
 
-    template <typename ActiveCellLambda,
+    template <typename ActiveIndexLambda,
               typename BcLambda>
     Partitioner1D(const Neon::Backend&        backend,
-                  const ActiveCellLambda&     activeCellLambda,
+                  const ActiveIndexLambda&    activeIndexLambda,
                   const BcLambda&             bcLambda,
                   const Neon::index_3d&       dataBlockSize,
                   const Neon::int32_3d&       domainSize,
                   const Neon::domain::Stencil stencil,
-                  const int&                  discreteVoxelSpacing = 1)
+                  const int&                  multiResDiscreteIdxSpacing = 1)
     {
         mData = std::make_shared<Data>();
 
         mData->mDataBlockSize = dataBlockSize;
-        mData->mDiscreteVoxelSpacing = discreteVoxelSpacing;
+        mData->mMultiResDiscreteIdxSpacing = multiResDiscreteIdxSpacing;
         mData->mStencil = stencil;
         mData->mDomainSize = domainSize;
 
-        Neon::int32_3d block3DSpan(NEON_DIVIDE_UP(domainSize.x, dataBlockSize.x),
-                                   NEON_DIVIDE_UP(domainSize.y, dataBlockSize.y),
-                                   NEON_DIVIDE_UP(domainSize.z, dataBlockSize.z));
+        // Block space interval (i.e. indexing space at the block granularity)
 
-        mData->block3DSpan = block3DSpan;
+        mData->block3DSpan = Neon::int32_3d(NEON_DIVIDE_UP(domainSize.x, dataBlockSize.x),
+                                            NEON_DIVIDE_UP(domainSize.y, dataBlockSize.y),
+                                            NEON_DIVIDE_UP(domainSize.z, dataBlockSize.z));
 
-        std::vector<int> nBlockProjectedToZ(block3DSpan.z);
+        std::vector<int> nBlockProjectedToZ(mData->block3DSpan.z);
 
         auto block3dIdxToBlockOrigin = [&](Neon::int32_3d const& block3dIdx) {
-            Neon::int32_3d blockOrigin(block3dIdx.x * dataBlockSize.x * discreteVoxelSpacing,
-                                       block3dIdx.y * dataBlockSize.y * discreteVoxelSpacing,
-                                       block3dIdx.z * dataBlockSize.z * discreteVoxelSpacing);
+            Neon::int32_3d blockOrigin(block3dIdx.x * dataBlockSize.x * multiResDiscreteIdxSpacing,
+                                       block3dIdx.y * dataBlockSize.y * multiResDiscreteIdxSpacing,
+                                       block3dIdx.z * dataBlockSize.z * multiResDiscreteIdxSpacing);
             return blockOrigin;
         };
 
         auto getVoxelAbsolute3DIdx = [&](Neon::int32_3d const& blockOrigin,
                                          Neon::int32_3d const& voxelRelative3DIdx) {
-            const Neon::int32_3d id(blockOrigin.x + voxelRelative3DIdx.x * discreteVoxelSpacing,
-                                    blockOrigin.y + voxelRelative3DIdx.y * discreteVoxelSpacing,
-                                    blockOrigin.z + voxelRelative3DIdx.z * discreteVoxelSpacing);
+            const Neon::int32_3d id(blockOrigin.x + voxelRelative3DIdx.x * multiResDiscreteIdxSpacing,
+                                    blockOrigin.y + voxelRelative3DIdx.y * multiResDiscreteIdxSpacing,
+                                    blockOrigin.z + voxelRelative3DIdx.z * multiResDiscreteIdxSpacing);
             return id;
         };
 
         mData->spanDecomposition = std::make_shared<partitioning::SpanDecomposition>(
             backend,
-            activeCellLambda,
+            activeIndexLambda,
             block3dIdxToBlockOrigin,
             getVoxelAbsolute3DIdx,
-            block3DSpan,
+            mData->block3DSpan,
             dataBlockSize,
             domainSize,
-            discreteVoxelSpacing);
+            multiResDiscreteIdxSpacing);
 
         mData->mSpanClassifier = std::make_shared<partitioning::SpanClassifier>(
             backend,
-            activeCellLambda,
+            activeIndexLambda,
             bcLambda,
             block3dIdxToBlockOrigin,
             getVoxelAbsolute3DIdx,
-            block3DSpan,
+            mData->block3DSpan,
             dataBlockSize,
             domainSize,
             stencil,
-            discreteVoxelSpacing,
+            multiResDiscreteIdxSpacing,
             mData->spanDecomposition);
 
         mData->mSpanLayout = std::make_shared<partitioning::SpanLayout>(
@@ -145,12 +173,16 @@ class Partitioner1D
 
         mData->mTopologyWithGhost = aGrid(backend,
                                           mData->mSpanLayout->getStandardAndGhostCount().typedClone<size_t>(), {251, 1, 1});
+
+        setDenseMeta();
     }
 
-    auto getBlockSpan() -> Neon::int32_3d
+    auto getBlockSpan() const
+        -> Neon::int32_3d
     {
         return mData->block3DSpan;
     }
+    
     auto getMemoryGrid() -> Neon::aGrid&
     {
         return mData->mTopologyWithGhost;
@@ -207,7 +239,7 @@ class Partitioner1D
 
                                 aGrid::Cell    idx(count);
                                 Neon::int32_3d point3d = mapperVec[j];
-                                point3d = point3d * mData->mDiscreteVoxelSpacing * mData->mDataBlockSize;
+                                point3d = point3d * mData->mMultiResDiscreteIdxSpacing * mData->mDataBlockSize;
                                 partition(idx, 0) = point3d;
                                 count++;
                             }
@@ -253,18 +285,11 @@ class Partitioner1D
         }
     }
 
-    auto getDenseMeta(DenseMeta& denseMeta) const
+
+    auto getDenseMeta() -> const DenseMeta&
     {
-        denseMeta = DenseMeta(mData->mDomainSize);
-        auto const& backend = mData->mTopologyWithGhost.getBackend();
-        backend.forEachDeviceSeq(
-            [&](Neon::SetIdx setIdx) {
-                forEachSeq(
-                    setIdx,
-                    [&](int offset, Neon::int32_3d const& idx3d, Neon::DataView dw) {
-                        denseMeta.add(idx3d, setIdx, offset, dw);
-                    });
-            });
+        //setDenseMeta();
+        return *mData->mDenseMeta;
     }
 
     auto getStencil3dTo1dOffset()
@@ -299,7 +324,7 @@ class Partitioner1D
                     assert(offset < countElement);
                     assert(offset >= 0);
                     // std::cout << ngh << " -> " << stencilIdx << " -> Pitch "  << offset<< std::endl;
-                    mData->stencil3dTo1dOffset.eRef(setIdx, offset, 0) = stencilIdx;
+                    mData->stencil3dTo1dOffset.eRef(setIdx, offset, 0) = static_cast<int8_t>(stencilIdx);
                     stencilIdx++;
                 }
             });
@@ -336,7 +361,7 @@ class Partitioner1D
                             auto const start = mData->mSpanLayout->getBoundsInternal(setIdx, byDomain).first;
                             for (uint64_t blockIdx = 0; blockIdx < mapperVec.size(); blockIdx++) {
                                 auto const& point3d = mapperVec[blockIdx];
-                                for (int s = 0; s < mData->mStencil.nPoints(); s++) {
+                                for (int s = 0; s < mData->mStencil.nNeighbours(); s++) {
 
                                     auto const offset = mData->mStencil.neighbours()[s];
 
@@ -349,7 +374,7 @@ class Partitioner1D
                                     if (findings.first) {
                                         targetNgh = findings.second;
                                     }
-                                    aGrid::Cell aIdx(start + blockIdx);
+                                    aGrid::Cell aIdx(static_cast<aGrid::Cell::Location>(start + blockIdx));
                                     partition(aIdx, s) = targetNgh;
                                 }
                             }
@@ -368,7 +393,7 @@ class Partitioner1D
                                 auto const start = mData->mSpanLayout->getBoundsBoundary(setIdx, byDirection, byDomain).first;
                                 for (int64_t blockIdx = 0; blockIdx < int64_t(mapperVec.size()); blockIdx++) {
                                     auto const& point3d = mapperVec[blockIdx];
-                                    for (int s = 0; s < mData->mStencil.nPoints(); s++) {
+                                    for (int s = 0; s < mData->mStencil.nNeighbours(); s++) {
 
 
                                         auto const offset = mData->mStencil.neighbours()[s];
@@ -383,7 +408,7 @@ class Partitioner1D
                                         if (findings.first) {
                                             targetNgh = findings.second;
                                         }
-                                        aGrid::Cell aIdx(start + blockIdx);
+                                        aGrid::Cell aIdx(static_cast<aGrid::Cell::Location>(start + blockIdx));
                                         partition(aIdx, s) = targetNgh;
                                     }
                                 }
@@ -398,11 +423,28 @@ class Partitioner1D
     }
 
    private:
+    void setDenseMeta()
+    {
+        if (!mData->mDenseMeta) {
+
+            mData->mDenseMeta = std::make_shared<DenseMeta>(mData->mDomainSize);
+            auto const& backend = mData->mTopologyWithGhost.getBackend();
+            backend.forEachDeviceSeq(
+                [&, denss = mData->mDenseMeta](Neon::SetIdx setIdx) {
+                    forEachSeq(
+                        setIdx,
+                        [=](int offset, Neon::int32_3d const& idx3d, Neon::DataView dw) {
+                            denss->add(idx3d, setIdx, offset, dw);
+                        });
+                });
+        }
+    }
+
     class Data
     {
        public:
         Neon::index_3d                        mDataBlockSize = 0;
-        int                                   mDiscreteVoxelSpacing = 0;
+        int                                   mMultiResDiscreteIdxSpacing = 0;
         Neon::domain::Stencil                 mStencil;
         Neon::index_3d                        mDomainSize;
         Neon::int32_3d                        block3DSpan;
@@ -420,6 +462,8 @@ class Partitioner1D
         std::shared_ptr<partitioning::SpanLayout>        mSpanLayout;
 
         Neon::aGrid mTopologyWithGhost;
+
+        std::shared_ptr<DenseMeta> mDenseMeta;
     };
     std::shared_ptr<Data> mData;
 };

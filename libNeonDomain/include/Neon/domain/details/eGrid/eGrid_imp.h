@@ -4,7 +4,7 @@
 namespace Neon::domain::details::eGrid {
 
 
-template <Neon::domain::SparsityPattern ActiveCellLambda>
+template <typename ActiveCellLambda>
 eGrid::eGrid(const Neon::Backend&         backend,
              const Neon::int32_3d&        dimension,
              const ActiveCellLambda&      activeCellLambda,
@@ -47,7 +47,7 @@ eGrid::eGrid(const Neon::Backend&         backend,
     mData->mGlobalMappingAField = mData->partitioner1D.getGlobalMapping();
     mData->mStencil3dTo1dOffset = mData->partitioner1D.getStencil3dTo1dOffset();
     mData->memoryGrid = mData->partitioner1D.getMemoryGrid();
-    mData->partitioner1D.getDenseMeta(mData->denseMeta);
+    //mData->partitioner1D.getDenseMeta(mData->denseMeta);
 
     const int32_t numDevices = getBackend().devSet().setCardinality();
 
@@ -167,7 +167,7 @@ auto eGrid::newContainer(const std::string& name,
                                                                                *this,
                                                                                lambda,
                                                                                defaultBlockSize,
-                                                                               [](const Neon::index_3d&) { return size_t(0); });
+                                                                               [](const Neon::index_3d&) {return 0; });
     return kContainer;
 }
 
