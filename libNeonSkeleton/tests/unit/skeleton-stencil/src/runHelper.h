@@ -24,7 +24,7 @@ using namespace Neon::domain::tool;
 template <typename G, typename T, int C>
 void runAllTestConfiguration(const std::string&                      gname,
                              std::function<void(TestData<G, T, C>&)> f,
-                             int                                     nGpus,
+                             //int                                     nGpus,
                              //int                                     minNumGpus,
 							 int									 main_argc,
 							 char**									 main_argv)
@@ -60,7 +60,7 @@ void runAllTestConfiguration(const std::string&                      gname,
                             //    ids.push_back(i % maxnGPUs);
                             //}
 
-                            Neon::Backend       backend(nGpus, main_argc, main_argv);
+                            Neon::Backend       backend(main_argc, main_argv);
                             Neon::MemoryOptions memoryOptions = backend.getMemoryOptions();
 
                             TestData<G, T, C> 	testData(backend,

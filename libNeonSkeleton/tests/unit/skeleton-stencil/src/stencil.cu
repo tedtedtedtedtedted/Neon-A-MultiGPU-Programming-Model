@@ -122,12 +122,13 @@ void singleStencil(TestData<G, T, C>& data)
 
 TEST(singleStencil, dGrid)
 {
-    int nGpus = 1;
+    //int nGpus = 1;
     using Grid = Neon::dGrid;
     using Type = int32_t;
     constexpr int C = 0;
     //runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
-    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, main_argc, main_argv);
+    //runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, main_argc, main_argv);
+    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, main_argc, main_argv);
 }
 
 //TEST(singleStencil, bGridSingleGpu)
