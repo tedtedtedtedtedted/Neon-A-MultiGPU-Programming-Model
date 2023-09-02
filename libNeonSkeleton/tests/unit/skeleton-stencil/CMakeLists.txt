@@ -8,6 +8,7 @@ target_link_libraries(skeleton-stencil
 	PUBLIC libNeonSkeleton
 	PUBLIC gtest_main)
 
+
 set_target_properties(skeleton-stencil PROPERTIES 
 	CUDA_SEPARABLE_COMPILATION ON
 	CUDA_RESOLVE_DEVICE_SYMBOLS ON)

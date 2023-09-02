@@ -44,9 +44,12 @@ class MemoryTransfer
         }
     };
 
-    Endpoint dst;
-    Endpoint src;
-    size_t   size{0};
+    Endpoint	dst;
+    Endpoint 	src;
+    size_t   	size{0};
+	bool		distributed{false};
+	int 		targetRank; 
+	ncclComm_t	communicator;
 
    public:
     MemoryTransfer() = default;
@@ -58,7 +61,18 @@ class MemoryTransfer
     {
     }
 
-    auto toString() const ->std::string{
+   	MemoryTransfer(const Endpoint& 	dst,
+				   const Endpoint& 	src,
+				   size_t			size,
+				   bool				distributed,
+				   int				targetRank,
+				   ncclComm_t		communicator)
+	   : dst(dst), src(src), size(size), distributed(distributed),
+	   	targetRank(targetRank), communicator(communicator)
+	{
+	}
+	
+	auto toString() const ->std::string{
        std::stringstream s;
        s << "Dst: {"<< dst.toString() << "} Src: {"<<src.toString()<<"} Size: {"<<size<<"}";
        return s.str();

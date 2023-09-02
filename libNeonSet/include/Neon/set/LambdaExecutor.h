@@ -115,7 +115,6 @@ NEON_CUDA_KERNEL auto launchLambdaOnSpanCUDA(typename DataSetContainer::Span spa
 }
 #endif
 
-
 template <typename IndexType, typename DataSetContainer, typename UserLambda_ta>
 void launchLambdaOnSpanOMP(const Neon::Integer_3d<IndexType>& blockSize,
                            const Neon::Integer_3d<IndexType>& blockGridSize,

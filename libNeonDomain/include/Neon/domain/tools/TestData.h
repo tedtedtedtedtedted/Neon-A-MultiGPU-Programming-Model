@@ -314,6 +314,7 @@ auto TestData<G, T, C>::resetValuesToConst(Type offset, Type offsetBetweenFields
     }
     mGrid.getBackend().sync(0);
 }
+
 template <typename G, typename T, int C>
 template <typename LambdaCompare>
 auto TestData<G, T, C>::compare(FieldNames    name,
@@ -478,6 +479,95 @@ auto TestData<G, T, C>::compare(FieldNames         name,
     } else {
         bool foundAnIssue = false;
         this->compare(name, [&](const Neon::index_3d& idx,
+                                int                   cardinality,
+                                const T&              golden,
+                                const T&              computed) {
+            T goldenABS = std::abs(golden);
+            T computedABS = std::abs(computed);
+            T maxAbs = std::max(goldenABS, computedABS);
+
+            auto relativeDiff = (maxAbs == 0.0 ? 0.0 : std::abs(golden - computed) / maxAbs);
+            foundAnIssue = relativeDiff >= tollerance;
+        });
+        isTheSame = !foundAnIssue;
+    }
+    return isTheSame;
+}
+
+
+template <typename G, typename T, int C>
+auto TestData<G, T, C>::compareAndGetField(FieldNames         name,
+                                           [[maybe_unused]] T tollerance) -> Neon::domain::tool::testing::IODomain<T>
+{
+    bool doExtraOutput = (std::getenv("NEON_GTEST_VERBOSE") != nullptr);
+    bool isTheSame = false;
+    if constexpr (std::is_integral_v<T>) {
+        bool foundAnIssue = false;
+        auto retField = this->compareAndGetField(name, [&]([[maybe_unused]] const Neon::index_3d& idx,
+                                                [[maybe_unused]] int                   cardinality,
+                                                const T&                               golden,
+                                                const T&                               computed) {
+            if(golden == computed){
+                return true;
+            }else {
+                return false;
+            }
+        });
+        return retField;
+    } else {
+        bool foundAnIssue = false;
+        auto retField = this->compare(name, [&](const Neon::index_3d& idx,
+                                                int                   cardinality,
+                                                const T&              golden,
+                                                const T&              computed) {
+            T goldenABS = std::abs(golden);
+            T computedABS = std::abs(computed);
+            T maxAbs = std::max(goldenABS, computedABS);
+
+            auto relativeDiff = (maxAbs == 0.0 ? 0.0 : std::abs(golden - computed) / maxAbs);
+            foundAnIssue = relativeDiff >= tollerance;
+            return !foundAnIssue;
+        });
+        return retField;
+    }
+}
+
+template <typename G, typename T, int C>
+auto TestData<G, T, C>::compareDistributed(FieldNames         name,
+                                [[maybe_unused]] T tollerance) -> bool
+{
+    bool doExtraOutput = (std::getenv("NEON_GTEST_VERBOSE") != nullptr);
+    bool isTheSame = false;
+    if constexpr (std::is_integral_v<T>) {
+        bool foundAnIssue = false;
+        this->compareDistributed(name, [&]([[maybe_unused]] const Neon::index_3d& idx,
+                                [[maybe_unused]] int                   cardinality,
+                                const T&                               golden,
+                                const T&                               computed) {
+            if (golden != computed && doExtraOutput) {
+                {
+#pragma omp critical
+                    {
+                        foundAnIssue = true;
+                        std::stringstream s;
+                        s << idx.to_string() << "Golden " << golden << " Computed " << computed << std::endl;
+                        NEON_INFO(s.str());
+                    }
+                }
+            }
+            if (golden != computed && !doExtraOutput) {
+                {
+#pragma omp critical
+                    {
+                        foundAnIssue = true;
+                    }
+                }
+            }
+        });
+        isTheSame = !foundAnIssue;
+    } else {
+        bool foundAnIssue = false;
+        this->compareDistributed(name, [&](const Neon::index_3d& idx,
                                 int                   cardinality,
                                 const T&              golden,
                                 const T&              computed) {

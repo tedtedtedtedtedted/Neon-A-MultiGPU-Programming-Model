@@ -15,6 +15,9 @@
 // #include "Neon/core/types/devType.h"
 #include "Neon/set/DataSet.h"
 
+#include "nccl.h"
+#include "cuda_runtime.h"
+
 namespace Neon {
 using StreamIdx = int;
 using EventIdx = int;
@@ -28,7 +31,7 @@ class Backend
    public:
     static constexpr int mainStreamIdx{0};
 
-   private:
+   //private: // Ted: TODO: Dangerous! Let this be public so accessbile. Confirm with Max!
     struct Data_t
     {
         Neon::Runtime    runtime{Neon::Runtime::none};
@@ -39,10 +42,20 @@ class Backend
         std::vector<Neon::set::GpuEventSet> userEventSetVec;
 
         std::shared_ptr<Neon::set::DevSet> devSet;
-    };
-    auto selfData() -> Data_t&;
-    auto selfData() const -> const Data_t&;
 
+		// Ted: Below for MPI&NCCL communications.
+		bool distributed;
+		int myRank, localRank, numRank, numDev, sizeDeviceMem;
+		char hostname[1024];
+		float** sendBuff;
+		float** recvBuff;
+		ncclUniqueId ncclId;
+		// ncclComm_t communicators[numRank]; // Code won't work because numRank is not known.
+		std::vector<ncclComm_t> communicators;
+    };
+    auto selfData() -> Data_t&; 
+	auto selfData() const -> const Data_t&;
+ 
     std::shared_ptr<Data_t> m_data;
 
    public:
@@ -85,6 +98,13 @@ class Backend
      */
     Backend(const Neon::set::DevSet&    devSet,
             const Neon::set::StreamSet& streamSet);
+
+	/**
+	 * Ted:
+	 * Backend constructor for distributed systems.
+	 * Runtime will be Neon::runtime::stream for now because assume GPUs, may later extend.
+	 */
+	Backend(int nGpus, int argc, char* argv[]);
 
     template <typename T>
     auto newDataSet()
@@ -153,6 +173,16 @@ class Backend
                                 Neon::SetIdx srcSet,
                                 T const*     srcAddr)
       const  -> void;
+
+	template <typename T>
+	auto nodeToNodeTransfer(int 			streamIdx, 
+							size_t 			sizeTransfer,
+							Neon::SetIdx	srcIdx,
+							int 			targetRank, 
+							T* 				sendBuff, 
+							T* 				recvBuff,
+							ncclComm_t		communicator) const -> void;
+
     /**
      * Run mode: sync/async
      */
@@ -238,6 +268,10 @@ class Backend
         const
         -> void;
 
+//	auto syncAllDistributed()
+//		const
+//		-> void;
+
     /**
      *
      * @param idx
@@ -299,6 +333,16 @@ class Backend
                                         Neon::SetIdx            srcSet,
                                         const char*             srcAddr)
     const    -> void;
+
+	template <typename T>
+	auto helpNodeToNodeTransferByte(int 			streamIdx, 
+									size_t 			sizeTransfer,
+									Neon::SetIdx	srcIdx,
+									int 			targetRank, 
+									T* 				sendBuff, 
+									T* 				recvBuff,
+									ncclComm_t		communicator) const -> void;
+		
 };
 
 }  // namespace Neon

@@ -68,4 +68,23 @@ auto Backend::deviceToDeviceTransfer(int                     streamId,
                                    srcSet,
                                    srcAddr);
 }
+
+template <typename T>
+auto Backend::nodeToNodeTransfer(int 			streamIdx, 
+						size_t 			sizeTransfer,
+						Neon::SetIdx	srcIdx,
+						int 			targetRank, 
+						T* 				sendBuff, 
+						T* 				recvBuff,
+						ncclComm_t		communicator) const -> void
+{
+	helpNodeToNodeTransferByte<T>(streamIdx,
+								sizeTransfer,
+								srcIdx,
+								targetRank,
+								sendBuff,
+								recvBuff,
+								communicator);
+}
+
 }  // namespace Neon

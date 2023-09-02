@@ -4,7 +4,8 @@
 namespace Neon::domain::details::dGrid {
 
 
-template <typename ActiveCellLambda>
+
+template <Neon::domain::SparsityPattern ActiveCellLambda>
 dGrid::dGrid(const Neon::Backend&  backend,
              const Neon::int32_3d& dimension,
              const ActiveCellLambda& /*activeCellLambda*/,
@@ -12,7 +13,22 @@ dGrid::dGrid(const Neon::Backend&  backend,
              const Vec_3d<double>&        spacing,
              const Vec_3d<double>&        origin)
 {
+
+	// Ted: Modify <dimension> to adapt distributed systems.
+	Neon::int32_3d dimDistributed = dimension;
+	int32_t uniformProc = dimension.z / backend.selfData().numRank;
+	int32_t reminderProc = dimension.z % backend.selfData().numRank;
+	if (backend.selfData().myRank < reminderProc) { // Smarter partitioning strategy as below!
+		dimDistributed.z = uniformProc + 1;
+	} else {
+		dimDistributed.z = uniformProc;
+	}	
+
     mData = std::make_shared<Data>(backend);
+
+	// Ted: TODO: Update the new way of identifying distributed or not. Problem here is <dGrid> is only for distributed system, not single machine case anymore.
+	mData->zOrigin = backend.selfData().myRank * (uniformProc + 1); // Ted: Compute the z-dimension index of the origin.
+
     const index_3d defaultBlockSize(256, 1, 1);
 
     {
@@ -21,7 +37,7 @@ dGrid::dGrid(const Neon::Backend&  backend,
         // then we reset to the computed number.
         dGrid::GridBase::init("dGrid",
                               backend,
-                              dimension,
+                              dimDistributed,
                               stencil,
                               nElementsPerPartition,
                               Neon::index_3d(256, 1, 1),
@@ -162,7 +178,7 @@ dGrid::dGrid(const Neon::Backend&  backend,
         for (int i = 0; i < stencil.nNeighbours(); ++i) {
             for (int devIdx = 0; devIdx < backend.devSet().setCardinality(); devIdx++) {
                 index_3d      pLong = stencil.neighbours()[i];
-                Neon::int8_3d pShort = pLong.newType<int8_t>();
+                Neon::int8_3d pShort(pLong.x, pLong.y, pLong.z);
                 mData->stencilIdTo3dOffset.eRef(devIdx, i) = pShort;
             }
         }
@@ -175,7 +191,7 @@ dGrid::dGrid(const Neon::Backend&  backend,
         });
         dGrid::GridBase::init("dGrid",
                               backend,
-                              dimension,
+                              dimDistributed,
                               stencil,
                               nElementsPerPartition,
                               defaultBlockSize,
@@ -202,6 +218,16 @@ auto dGrid::newField(const std::string&  fieldUserName,
         NEON_THROW(exception);
     }
 
+//	if (this->getGrid().getBackend().distributed) { // Distributed system origin.	
+//		int zOrigin = 0; // Compute the origin with respect to the distributed system. Should be the sum of z-axes of the argument <dims> which is dimensions for partitions.
+//		for (auto coordinate : dims.vec()) {
+//			zOrigin += coordinate.z;
+//		}	
+//    	Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, zOrigin});	
+//	} else {// Single-node origin.
+//    	Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, 0});	
+//	}
+
     dField<T, C> field(fieldUserName,
                        dataUse,
                        memoryOptions,
@@ -210,7 +236,10 @@ auto dGrid::newField(const std::string&  fieldUserName,
                        mData->halo.z,
                        haloStatus,
                        cardinality,
-                       mData->stencilIdTo3dOffset);
+                       mData->stencilIdTo3dOffset,
+					   mData->zOrigin);
+
+	// field.helpResetGlobalInfoForDistributedSystems(); // Ted: For now decide to do it right from the beginning (i.e. distinguish single-node v.s. distributed systems, for origins of partitions) in <dField()> constructor, instead of resetting.
 
     return field;
 }
@@ -228,7 +257,7 @@ auto dGrid::newContainer(const std::string& name,
                                                                      *this,
                                                                      lambda,
                                                                      defaultBlockSize,
-                                                                     [](const Neon::index_3d&) { return 0; });
+                                                                     [](const Neon::index_3d&) { return size_t(0); });
     return c;
 }
 

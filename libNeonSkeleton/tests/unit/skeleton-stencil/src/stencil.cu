@@ -15,6 +15,7 @@
 
 using namespace Neon::domain::tool::testing;
 
+
 template <typename Field>
 auto laplaceOnIntegers(const Field& filedA,
                        Field&       fieldB)
@@ -100,7 +101,6 @@ void singleStencil(TestData<G, T, C>& data)
         }
     }
     data.getBackend().syncAll();
-
 
     bool isOk = data.compare(FieldNames::X);
     isOk = isOk && data.compare(FieldNames::Y);

@@ -145,7 +145,8 @@ class dField : public Neon::domain::interface::FieldBaseTemplate<T,
            int                                       zHaloRadius,
            Neon::domain::haloStatus_et::e            haloStatus,
            int                                       cardinality,
-           Neon::set::MemSet<Neon::int8_3d>&         stencilIdTo3dOffset);
+           Neon::set::MemSet<Neon::int8_3d>&         stencilIdTo3dOffset,
+		   int 										 zOrigin);
 
     struct Data
     {
@@ -175,8 +176,10 @@ class dField : public Neon::domain::interface::FieldBaseTemplate<T,
 
         Neon::domain::tool::PartitionTable<Partition, ReductionInformation> partitionTable;
         Neon::domain::tool::HaloTable1DPartitioning                         latticeHaloUpdateTable;
-        Neon::domain::tool::HaloTable1DPartitioning                         soaHaloUpdateTable;
-        Neon::domain::tool::HaloTable1DPartitioning                         aosHaloUpdateTable;
+        Neon::domain::tool::HaloTable1DPartitioning                         soaHaloUpdateTableLocal;
+        Neon::domain::tool::HaloTable1DPartitioning                         soaHaloUpdateTableDistributed;
+        Neon::domain::tool::HaloTable1DPartitioning                         aosHaloUpdateTableLocal;
+        Neon::domain::tool::HaloTable1DPartitioning                         aosHaloUpdateTableDistributed;
         Neon::aGrid::Field<T, C>                                            memoryField;
 
         Neon::DataUse                     dataUse;

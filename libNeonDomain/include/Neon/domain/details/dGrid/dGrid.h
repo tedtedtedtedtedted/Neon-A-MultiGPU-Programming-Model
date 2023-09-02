@@ -78,7 +78,7 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
     /**
      * Constructor compatible with the general grid API
      */
-    template <typename SparsityPattern>
+    template <Neon::domain::SparsityPattern SparsityPattern>
     dGrid(const Neon::Backend&         backend /**< Target for computation */,
           const Neon::int32_3d&        dimension /**< Dimension of the bounding box containing the domain */,
           const SparsityPattern&       activeCellLambda /**< InOrOutLambda({x,y,z}->{true, false}) */,
@@ -207,7 +207,9 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
     auto helpGetFirstZindex()
         const -> const Neon::set::DataSet<int32_t>&;
 
-   private:
+
+   //private: // Ted: TODO: Dangerous! Let this be public so accessbile. Confirm with Max!
+   public:    // Ted: TODO: Dangerous! Let this be public so accessbile. Confirm with Max!
     struct Data
     {
         Data() = default;
@@ -226,9 +228,10 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
         Neon::aGrid                 memoryGrid /** memory allocator for fields */;
 
         Neon::set::MemSet<Neon::int8_3d> stencilIdTo3dOffset;
+		int							zOrigin; // Ted: In distributed system, without this, info lost after <dGrid> constructor because the global grid dimension turned into the local distributed grid dimension, which doesn't preserve the global grid dimension.
     };
 
-    std::shared_ptr<Data> mData;
+    std::shared_ptr<Data> mData; // Ted: TODO: Do something similar to <selfData()> as backend? Any benefit?
 };
 
 }  // namespace Neon::domain::details::dGrid

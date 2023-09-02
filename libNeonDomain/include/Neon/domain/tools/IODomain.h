@@ -118,6 +118,18 @@ struct IODomain
                        const IODomain<ExportTypeVariadic_ta>&... otherDense /**< Optional. Other fields that may be needed during the field visit */)
         const -> void;
 
+	template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+	auto forEachActiveStartingAt(const Lambda_ta& userLambda,
+														 const int start_z,
+														 const int dim_z,
+	                                                     IODomain<ExportTypeVariadic_ta>&... otherDense) -> void;
+	
+	template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+	auto forEachActiveStartingAt(const Lambda_ta& lambda,
+														 const int start_z,
+														 const int dim_z,
+	                                                     const IODomain<ExportTypeVariadic_ta>&... otherDense) const -> void;
+	
     /**
      * Computing the max different component by component.
      */
@@ -351,6 +363,46 @@ auto IODomain<ExportType, intType_ta>::forEachActive(const Lambda_ta& lambda,
         userLambda((*this)(idx, card), otherDense()(idx, card)...);
     });
 }
+
+template <typename ExportType, typename intType_ta>
+template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+auto IODomain<ExportType, intType_ta>::forEachActiveStartingAt(const Lambda_ta& userLambda,
+													 const int start_z,
+													 const int dim_z,
+                                                     IODomain<ExportTypeVariadic_ta>&... otherDense) -> void
+{
+    mMask.forEachStartingAt([&, this](const Neon::index_3d& idx, int /*card*/, typename decltype(mMask)::Type& val) -> void {
+        const bool isA = val == InsideFlag;
+        if (!isA) {
+            return;
+        }
+        for (int cc = 0; cc < this->getCardinality(); cc++) {
+            userLambda(idx, cc, getReference(idx, cc), otherDense.getReference(idx, cc)...);
+        }
+    },
+	start_z,
+	dim_z
+	);
+}
+
+template <typename ExportType, typename intType_ta>
+template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+auto IODomain<ExportType, intType_ta>::forEachActiveStartingAt(const Lambda_ta& lambda,
+													 const int start_z,
+													 const int dim_z,
+                                                     const IODomain<ExportTypeVariadic_ta>&... otherDense) const -> void
+{
+    mMask.forEachStartingAt([&, this](const Neon::index_3d& idx, int card, Type& val) -> void {
+        const bool isA = isActive(idx);
+        if (!isA) {
+            return;
+        }
+        userLambda((*this)(idx, card), otherDense()(idx, card)...);
+    },
+	start_z,
+	dim_z);
+}
+
 
 template <typename ExportType, typename intType_ta>
 auto IODomain<ExportType, intType_ta>::maxDiff(const IODomain<ExportType, intType_ta>& a,

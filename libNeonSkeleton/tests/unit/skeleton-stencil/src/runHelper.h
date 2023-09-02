@@ -33,6 +33,7 @@ void runAllTestConfiguration(const std::string&                      gname,
             nGpuTest.push_back(i);
         }
 
+
         std::vector<int> cardinalityTest{1};
 
         std::vector<Neon::index_3d> dimTest{{64, 16, 252}};
@@ -40,6 +41,7 @@ void runAllTestConfiguration(const std::string&                      gname,
         if (Neon::sys::globalSpace::gpuSysObjStorage.numDevs() > 0) {
             runtimeE.push_back(Neon::Runtime::stream);
         }
+
 
         std::vector<Geometry> geos{
             Geometry::FullDomain,

@@ -150,61 +150,27 @@ class dPartition
         return NghData(val, isValidNeighbour);
     }
 
-    template <int xOff, int yOff, int zOff, typename LambdaVALID, typename LambdaNOTValid = void* >
+    template <int xOff, int yOff, int zOff, typename LambdaVALID, typename LambdaNOTValid = void*>
     NEON_CUDA_HOST_DEVICE inline auto
     getNghData(const Idx&     eId,
                int            card,
                LambdaVALID    funIfValid,
                LambdaNOTValid funIfNOTValid = nullptr)
-        const -> std::enable_if_t<std::is_invocable_v<LambdaVALID, T> , void>
+        const -> void
     {
         Idx        cellNgh;
         const bool isValidNeighbour = nghIdx<xOff, yOff, zOff>(eId, cellNgh);
         if (isValidNeighbour) {
-            T val = this->operator()(cellNgh, card);
+            T val = operator()(cellNgh, card);
             funIfValid(val);
         }
-        if constexpr (!std::is_same_v<LambdaNOTValid, void*>) {
+        if constexpr (!std::same_as<LambdaNOTValid, void*>) {
             if (!isValidNeighbour) {
                 funIfNOTValid();
             }
         }
     }
 
-    template <int xOff, int yOff, int zOff>
-    NEON_CUDA_HOST_DEVICE inline auto
-    getNghData(const Idx& eId,
-               int        card)
-        const -> NghData
-    {
-        NghData    res;
-        Idx        cellNgh;
-        const bool isValidNeighbour = nghIdx<xOff, yOff, zOff>(eId, cellNgh);
-        if (isValidNeighbour) {
-            T val = operator()(cellNgh, card);
-            res.set(val, true);
-        } else {
-            res.invalidate();
-        }
-        return res;
-    }
-
-    template <int xOff, int yOff, int zOff>
-    NEON_CUDA_HOST_DEVICE inline auto
-    getNghData(const Idx& eId,
-               int        card,
-               T const&   defaultValue)
-        const -> NghData
-    {
-        NghData    res(defaultValue, false);
-        Idx        cellNgh;
-        const bool isValidNeighbour = nghIdx<xOff, yOff, zOff>(eId, cellNgh);
-        if (isValidNeighbour) {
-            T val = operator()(cellNgh, card);
-            res.set(val, true);
-        }
-        return res;
-    }
 
     NEON_CUDA_HOST_DEVICE inline auto
     nghVal(const Idx& eId,
