@@ -84,21 +84,12 @@ class TestData
     auto compare(FieldNames name, LambdaCompare lambdaCompare)
         -> void;
 
-	template <typename LambdaCompare>
-	auto compareDistributed(FieldNames    name,
-							LambdaCompare lambdaCompare)
-    	-> void;
-
     template <typename LambdaCompare>
     auto compareAndGetField(FieldNames name, LambdaCompare lambdaCompare)
         -> Neon::domain::tool::testing::IODomain<T>;
 
     auto compare(FieldNames name, T tollerance = T(0.0000001))
         -> bool;
-
-	auto compareDistributed(FieldNames         name,
-							[[maybe_unused]] T tollerance = T(0.0000001)) 
-		-> bool;
 
     auto compareAndGetField(FieldNames name, T tollerance = T(0.0000001))
         -> Neon::domain::tool::testing::IODomain<T>;
@@ -348,35 +339,6 @@ auto TestData<G, T, C>::compare(FieldNames    name,
 
 template <typename G, typename T, int C>
 template <typename LambdaCompare>
-auto TestData<G, T, C>::compareDistributed(FieldNames    name,
-                                LambdaCompare lambdaCompare)
-    -> void
-{
-	// Ted: TODO: Future better style if put <start_z> and <dim_z> as member of TestData. Or just do it in backend constructor.
-	int start_z = mGrid.mData->zOrigin;
-	int dim_z = mGrid.getDimension().z;
-
-    auto idx = FieldNamesUtils::toInt(name);
-    mFields[idx].updateHostData(0);
-    mGrid.getBackend().sync(0);
-
-    auto                                     tmpDense = mFields[idx].template ioToDense<Type>();
-    Neon::domain::tool::testing::IODomain<T> tmpIODomain(tmpDense, mIODomains[idx].getMask(), mIODomains[idx].getOutsideValue());
-
-    mIODomains[idx].forEachActiveStartingAt([&](const Neon::index_3d&                                          idx,
-                                      			int                                                            cardinality,
-                                      			const typename Neon::domain::tool::testing::IODomain<T>::Type& goldenVal,
-                                      			const typename Neon::domain::tool::testing::IODomain<T>::Type& testVal) {
-        lambdaCompare(idx, cardinality, goldenVal, testVal);
-    },
-												start_z,
-												dim_z,
-												tmpIODomain);
-}
-
-
-template <typename G, typename T, int C>
-template <typename LambdaCompare>
 auto TestData<G, T, C>::compareAndGetField(FieldNames    name,
                                            LambdaCompare lambdaCompare)
     -> Neon::domain::tool::testing::IODomain<T>
@@ -530,6 +492,44 @@ auto TestData<G, T, C>::compare(FieldNames         name,
         isTheSame = !foundAnIssue;
     }
     return isTheSame;
+}
+
+
+template <typename G, typename T, int C>
+auto TestData<G, T, C>::compareAndGetField(FieldNames         name,
+                                           [[maybe_unused]] T tollerance) -> Neon::domain::tool::testing::IODomain<T>
+{
+    bool doExtraOutput = (std::getenv("NEON_GTEST_VERBOSE") != nullptr);
+    bool isTheSame = false;
+    if constexpr (std::is_integral_v<T>) {
+        bool foundAnIssue = false;
+        auto retField = this->compareAndGetField(name, [&]([[maybe_unused]] const Neon::index_3d& idx,
+                                                [[maybe_unused]] int                   cardinality,
+                                                const T&                               golden,
+                                                const T&                               computed) {
+            if(golden == computed){
+                return true;
+            }else {
+                return false;
+            }
+        });
+        return retField;
+    } else {
+        bool foundAnIssue = false;
+        auto retField = this->compare(name, [&](const Neon::index_3d& idx,
+                                                int                   cardinality,
+                                                const T&              golden,
+                                                const T&              computed) {
+            T goldenABS = std::abs(golden);
+            T computedABS = std::abs(computed);
+            T maxAbs = std::max(goldenABS, computedABS);
+
+            auto relativeDiff = (maxAbs == 0.0 ? 0.0 : std::abs(golden - computed) / maxAbs);
+            foundAnIssue = relativeDiff >= tollerance;
+            return !foundAnIssue;
+        });
+        return retField;
+    }
 }
 
 template <typename G, typename T, int C>

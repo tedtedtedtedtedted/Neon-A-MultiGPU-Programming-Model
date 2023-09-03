@@ -157,6 +157,7 @@ class dPartition
                LambdaVALID    funIfValid,
                LambdaNOTValid funIfNOTValid = nullptr)
         const -> void
+
     {
         Idx        cellNgh;
         const bool isValidNeighbour = nghIdx<xOff, yOff, zOff>(eId, cellNgh);

@@ -227,7 +227,6 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
         Neon::aGrid                 memoryGrid /** memory allocator for fields */;
 
         Neon::set::MemSet<Neon::int8_3d> stencilIdTo3dOffset;
-
 		int							zOrigin; // Ted: In distributed system, without this, info lost after <dGrid> constructor because the global grid dimension turned into the local distributed grid dimension, which doesn't preserve the global grid dimension.
     };
 

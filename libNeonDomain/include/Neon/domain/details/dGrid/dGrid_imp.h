@@ -12,7 +12,6 @@ dGrid::dGrid(const Neon::Backend&  backend,
              const Vec_3d<double>&        spacing,
              const Vec_3d<double>&        origin)
 {
-
 	// Ted: Modify <dimension> to adapt distributed systems.
 	Neon::int32_3d dimDistributed = dimension;
 	int32_t uniformProc = dimension.z / backend.selfData().numRank;
@@ -217,7 +216,6 @@ auto dGrid::newField(const std::string&  fieldUserName,
         NEON_THROW(exception);
     }
 
-
 //	if (this->getGrid().getBackend().distributed) { // Distributed system origin.	
 //		int zOrigin = 0; // Compute the origin with respect to the distributed system. Should be the sum of z-axes of the argument <dims> which is dimensions for partitions.
 //		for (auto coordinate : dims.vec()) {
@@ -319,3 +317,4 @@ auto dGrid::norm2([[maybe_unused]] const std::string&               name,
 }
 
 }  // namespace Neon::domain::details::dGrid
+

@@ -12,14 +12,8 @@
 #include "Neon/skeleton/Skeleton.h"
 
 #include "runHelper.h"
-#include "mpi.h"
 
 using namespace Neon::domain::tool::testing;
-
-
-extern int main_argc;
-extern char** main_argv;
-
 
 template <typename Field>
 auto laplaceOnIntegers(const Field& filedA,
@@ -74,9 +68,6 @@ void singleStencil(TestData<G, T, C>& data)
     const T val = 89;
 
     data.getBackend().syncAll();
-	if (data.getBackend().selfData().distributed) { // Ted: For distributed systems.
-		MPI_Barrier(MPI_COMM_WORLD);
-	}
 
     data.resetValuesToRandom(1, 50);
 
@@ -109,13 +100,9 @@ void singleStencil(TestData<G, T, C>& data)
         }
     }
     data.getBackend().syncAll();
-	if (data.getBackend().selfData().distributed) { // Ted: For distributed systems.
-		MPI_Barrier(MPI_COMM_WORLD);
-	}
 
-
-    bool isOk = data.compareDistributed(FieldNames::X);
-    isOk = isOk && data.compareDistributed(FieldNames::Y);
+    bool isOk = data.compare(FieldNames::X);
+    isOk = isOk && data.compare(FieldNames::Y);
 
     ASSERT_TRUE(isOk);
 }
@@ -126,16 +113,14 @@ TEST(singleStencil, dGrid)
     using Grid = Neon::dGrid;
     using Type = int32_t;
     constexpr int C = 0;
-    //runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
-    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, main_argc, main_argv);
+    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, 1);
 }
 
-//TEST(singleStencil, bGridSingleGpu)
-//{
-//    int nGpus = 1;
-//    using Grid = Neon::bGrid;
-//    using Type = int32_t;
-//    constexpr int C = 0;
-//    //runAllTestConfiguration<Grid, Type, 0>("bGrid", singleStencil<Grid, Type, C>, nGpus, 1, main_argc, main_argv);
-//    runAllTestConfiguration<Grid, Type, 0>("bGrid", singleStencil<Grid, Type, C>, nGpus, main_argc, main_argv);
-//}
+TEST(singleStencil, bGridSingleGpu)
+{
+    int nGpus = 1;
+    using Grid = Neon::bGrid;
+    using Type = int32_t;
+    constexpr int C = 0;
+    runAllTestConfiguration<Grid, Type, 0>("bGrid", singleStencil<Grid, Type, C>, nGpus, 1);
+}

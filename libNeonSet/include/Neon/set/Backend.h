@@ -14,8 +14,10 @@
 // #include "Neon/core/types/mode.h"
 // #include "Neon/core/types/devType.h"
 #include "Neon/set/DataSet.h"
+
 #include "nccl.h"
 #include "cuda_runtime.h"
+
 
 namespace Neon {
 using StreamIdx = int;

@@ -58,6 +58,7 @@ struct DataTransferContainer
                                                          	memoryTransfer.dst.setIdx, (char*)memoryTransfer.dst.mem,
                                                          	memoryTransfer.src.setIdx, (char*)memoryTransfer.src.mem);
 				}
+
                 //std::cout <<"Sending ("<<setIdx<<") " << memoryTransfer.toString()<<std::endl;
                 // std::cout<< " val " << ((int64_t*)memoryTransfer.src.mem)[0]<< " to "<<((int64_t*)memoryTransfer.src.mem)[8*8*8-1]<< std::endl;
             }

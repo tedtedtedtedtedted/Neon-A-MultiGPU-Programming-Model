@@ -51,7 +51,7 @@ dField<T, C>::dField(const std::string&                        fieldUserName,
                             : haloStatus;
     const int haloRadius = mData->haloStatus == Neon::domain::haloStatus_et::ON ? zHaloRadius : 0;
     mData->zHaloDim = zHaloRadius;
-	
+
 	Neon::set::DataSet<index_3d> origins = this->getGrid().getBackend().template newDataSet<index_3d>({0, 0, zOrigin});	
     
 	{  // Computing origins
@@ -354,7 +354,6 @@ auto dField<T, C>::initHaloUpdateTable()
         }
         return res;
     };
-
 
 	
 	if (bk.selfData().distributed) { // If working with distributed systems:
