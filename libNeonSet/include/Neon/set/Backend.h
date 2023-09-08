@@ -179,7 +179,7 @@ class Backend
 							size_t 			sizeTransfer,
 							Neon::SetIdx	srcIdx,
 							int 			targetRank, 
-							T* 				sendBuff, 
+							T const* 		sendBuff, 
 							T* 				recvBuff,
 							ncclComm_t		communicator) const -> void;
 
@@ -334,13 +334,12 @@ class Backend
                                         const char*             srcAddr)
     const    -> void;
 
-	template <typename T>
 	auto helpNodeToNodeTransferByte(int 			streamIdx, 
 									size_t 			sizeTransfer,
 									Neon::SetIdx	srcIdx,
 									int 			targetRank, 
-									T* 				sendBuff, 
-									T* 				recvBuff,
+									const char* 	sendBuff, 
+									char* 			recvBuff,
 									ncclComm_t		communicator) const -> void;
 		
 };

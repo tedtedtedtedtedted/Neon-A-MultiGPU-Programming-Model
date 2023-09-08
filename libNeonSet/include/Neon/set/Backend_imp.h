@@ -71,14 +71,14 @@ auto Backend::deviceToDeviceTransfer(int                     streamId,
 
 template <typename T>
 auto Backend::nodeToNodeTransfer(int 			streamIdx, 
-						size_t 			sizeTransfer,
-						Neon::SetIdx	srcIdx,
-						int 			targetRank, 
-						T* 				sendBuff, 
-						T* 				recvBuff,
-						ncclComm_t		communicator) const -> void
+								size_t 			sizeTransfer,
+								Neon::SetIdx	srcIdx,
+								int 			targetRank, 
+								T const* 		sendBuff, 
+								T* 				recvBuff,
+								ncclComm_t		communicator) const -> void
 {
-	helpNodeToNodeTransferByte<T>(streamIdx,
+	helpNodeToNodeTransferByte(streamIdx,
 								sizeTransfer,
 								srcIdx,
 								targetRank,
