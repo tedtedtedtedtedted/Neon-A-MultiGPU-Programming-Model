@@ -719,13 +719,12 @@ auto Backend::helpDeviceToDeviceTransferByte(int                     streamId,
                     bytes);
 }
 
-template <typename T>
 auto Backend::helpNodeToNodeTransferByte(int 			streamIdx, 
 										size_t 			sizeTransfer,
 										Neon::SetIdx	srcIdx,
 										int 			targetRank, 
-										T* 				sendBuff, 
-										T* 				recvBuff,
+										const char* 	sendBuff, 
+										char*			recvBuff,
 										ncclComm_t		communicator) const -> void
 {
 	// A transfer consists of two endpoints. In our logic, the exchange is symmetric, i.e. A sends to B iff B sends to A. Therefore, when A sends to B via ncclSend(), we can immediately do A receives from B via ncclRecv().

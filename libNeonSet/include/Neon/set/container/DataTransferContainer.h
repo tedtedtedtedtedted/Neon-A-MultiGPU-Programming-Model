@@ -50,13 +50,14 @@ struct DataTransferContainer
 														memoryTransfer.targetRank,
 														(char*) memoryTransfer.src.mem,
 														(char*) memoryTransfer.dst.mem,
-														memoryTransfer.communicator);
+														memoryTransfer.communicator);		
 				} else { // Intra-process transfer.
                 	bk.template deviceToDeviceTransfer<char>(streamIdx,
                                                          	memoryTransfer.size,
                                                          	mTransferMode,
                                                          	memoryTransfer.dst.setIdx, (char*)memoryTransfer.dst.mem,
                                                          	memoryTransfer.src.setIdx, (char*)memoryTransfer.src.mem);
+
 				}
 
                 //std::cout <<"Sending ("<<setIdx<<") " << memoryTransfer.toString()<<std::endl;
@@ -80,6 +81,7 @@ struct DataTransferContainer
 														(char*) memoryTransfer.src.mem,
 														(char*) memoryTransfer.dst.mem,
 														memoryTransfer.communicator);
+
 				} else { // Intra-process transfer.
                 	bk.template deviceToDeviceTransfer<char>(streamIdx,
                                                          	memoryTransfer.size,
