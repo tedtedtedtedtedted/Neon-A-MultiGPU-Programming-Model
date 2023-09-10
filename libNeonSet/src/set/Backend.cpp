@@ -1,3 +1,5 @@
+#define OMPI_SKIP_MPICXX 1 // TODO: Ted: To avoid MPI_Op_create() cast between incompatible function types error, according to "https://github.com/marian-nmt/marian-dev/issues/741".
+
 #include "Neon/set/Backend.h"
 #include <cassert>
 #include <functional>

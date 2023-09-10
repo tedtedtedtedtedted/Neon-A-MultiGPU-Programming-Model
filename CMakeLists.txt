@@ -48,8 +48,17 @@ include_directories(${MPI_INCLUDE_PATH})
 # target_link_libraries(your_program PRIVATE ${MPI_CXX_LIBRARIES})
 
 
-# Ted: According to ChatGPT. For "nccl.h" path.
-include_directories($ENV{NCCL_HOME}/include)
+# Ted: For "nccl.h" path, over Graham GPU cluster:
+set(NCCL_DIR "/cvmfs/soft.computecanada.ca/easybuild/software/2020/avx2/CUDA/cuda11.7/nccl/2.12.12")
+include_directories(${NCCL_DIR}/include)
+# Ted: For "nccl.h" path, over my local machine:
+# set(NCCL_DIR $ENV{NCCL_HOME})
+# include_directories(${NCCL_DIR}/include)
+
+# Below some failed attempts, though good to know:
+#find_package(NCCL REQUIRED)
+#include_directories(${NCCL_INCLUDE_PATH})
+#include_directories($ENV{NCCL_HOME}/include)
 # Ted: Also the steps below but put it in executables like <skeleton-stencil>
 # add_executable(your_program your_cuda_code.cu)
 # target_link_libraries(your_program PRIVATE $ENV{NCCL_HOME/lib/libnccl.so)

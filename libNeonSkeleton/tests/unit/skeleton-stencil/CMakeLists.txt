@@ -8,7 +8,7 @@ target_link_libraries(skeleton-stencil
 	PUBLIC libNeonSkeleton
 	PUBLIC gtest_main
 	PRIVATE ${MPI_CXX_LIBRARIES}
-	PRIVATE $ENV{NCCL_HOME}/lib/libnccl.so)
+	PRIVATE ${NCCL_DIR}/lib/libnccl.so)
 
 
 set_target_properties(skeleton-stencil PROPERTIES 
