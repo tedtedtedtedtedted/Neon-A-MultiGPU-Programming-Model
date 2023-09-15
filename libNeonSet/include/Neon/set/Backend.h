@@ -104,7 +104,7 @@ class Backend
 	 * Backend constructor for distributed systems.
 	 * Runtime will be Neon::runtime::stream for now because assume GPUs, may later extend.
 	 */
-	Backend(int nGpus, int argc, char* argv[]);
+	Backend(int argc, char* argv[]);
 
     template <typename T>
     auto newDataSet()

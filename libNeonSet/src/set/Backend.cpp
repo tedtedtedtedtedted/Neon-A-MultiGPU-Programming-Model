@@ -8,6 +8,7 @@
 #include <thread>
 #include <tuple>
 #include <vector>
+#include <stdlib.h>
 
 #include <cstring>
 
@@ -102,8 +103,9 @@ Backend::Backend(const std::vector<int>&     devIds,
     assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
 }
 
-Backend::Backend(int nGpus, int argc, char* argv[]) // For distributed systems.	
+Backend::Backend(int argc, char* argv[]) // For distributed systems.	
 {
+	int nGpus = atoi(argv[1]);
     std::vector<int> devIds;
     for (int i = 0; i < nGpus; i++) {
         devIds.push_back(i);
