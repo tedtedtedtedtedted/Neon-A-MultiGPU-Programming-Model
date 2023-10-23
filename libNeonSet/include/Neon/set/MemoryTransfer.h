@@ -48,7 +48,7 @@ class MemoryTransfer
     Endpoint 	src;
     size_t   	size{0};
 	bool		distributed{false};
-	int 		targetRank; 
+	int 		targetRank{-1}; // Ted: Non-debug compile complains about this if no initialization with error meassage "may be used uninitialized".
 	ncclComm_t	communicator;
 
    public:
