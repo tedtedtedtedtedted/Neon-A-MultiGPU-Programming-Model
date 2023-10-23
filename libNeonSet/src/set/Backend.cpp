@@ -105,27 +105,42 @@ Backend::Backend(const std::vector<int>&     devIds,
 
 Backend::Backend(int argc, char* argv[]) // For distributed systems.	
 {
-	int nGpus = atoi(argv[1]);
-    std::vector<int> devIds;
-    for (int i = 0; i < nGpus; i++) {
-        devIds.push_back(i);
-    }
     m_data = std::make_shared<Data_t>();
-	selfData().distributed = true;
-	selfData().numDev = nGpus;
-	// selfData().sizeDeviceMem = sizeMem;
-    selfData().runtime = Neon::Runtime::stream;
-    selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
-    selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
-    h_initFirstEvent();
-    assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
-
 	// Initializing MPI:
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &(selfData().myRank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(selfData().numRank));
 
-	selfData().communicators.resize(selfData().numRank);
+
+	// Put while-loop sleep for debugging here, after MPI_Init, instead of before!
+    volatile int i = 0; 
+    char hostname[256];
+    gethostname(hostname, sizeof(hostname));
+    printf("PID %d on %s ready for attach\n", getpid(), hostname);
+    fflush(stdout);
+    while (0 == i) {
+        sleep(5);
+    }   
+
+
+	int nGpus = atoi(argv[1]);
+    std::cout << "Num GPUs: " << nGpus << std::endl;
+	std::vector<int> devIds;
+    for (int i = 0; i < nGpus; i++) {
+        devIds.push_back(i);
+    }
+	selfData().distributed = true;
+	selfData().numDev = nGpus;
+	// selfData().sizeDeviceMem = sizeMem;
+    selfData().runtime = Neon::Runtime::stream;
+	std::cout << "Before devSet" << std::endl; // Ted: TODO: Debug.
+    selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
+	std::cout << "After devSet" << std::endl; // Ted: TODO: Debug.
+    selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
+    h_initFirstEvent();
+    assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
+
+	selfData().communicators.resize(selfData().numRank - 1); // NCCL communicators only used in between adjacent nodes.
 
 	// We assume ranks to start from 0 and contiguous:
 	if (selfData().myRank >= selfData().numRank) { // TODO: Better error report (e.g. NEON_EXCEPTION...).
@@ -146,7 +161,10 @@ Backend::Backend(int argc, char* argv[]) // For distributed systems.
 	char hostnames[selfData().numRank * 1024]; // Better do 1D than 2D because a parameter in MPI_Allgather.
 	strncpy(hostnames + selfData().myRank * 1024, selfData().hostname, 1024); // Assume MPI ranks contiguous and start from 0.
 	hostnames[selfData().myRank * 1024 + 1024 - 1] = '\0';
+
+	std::cout << "Before MPI_Allgather!" << std::endl;
 	MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, hostnames, 1024, MPI_CHAR, MPI_COMM_WORLD);
+	std::cout << "After MPI_Allgather!" << std::endl;
 
 	selfData().localRank = 0;
 	int resultStrncmp;
@@ -176,18 +194,24 @@ Backend::Backend(int argc, char* argv[]) // For distributed systems.
 	if (selfData().myRank == 0) {
 		ncclGetUniqueId(&(selfData().ncclId));
 	}
+
+	std::cout << "Before MPI_Bcast!" << std::endl;
 	MPI_Bcast((void *) &(selfData().ncclId), sizeof(selfData().ncclId), MPI_BYTE, 0, MPI_COMM_WORLD);
+	std::cout << "After MPI_Bcast!" << std::endl;
+
+	std::cout << "Before NCCL init!" << std::endl;
 
 	// Initializing NCCL, group API is required around ncclCommInitRank as it is called across multiple GPUs in each thread/process:
 	ncclGroupStart();
-	for (int i = 0; i < selfData().numRank - 1; ++i) { // (numRank - 1) many communicators.
+	for (int i = 0; i < selfData().numRank - 1; i++) { // (numRank - 1) many communicators.
 		if (selfData().myRank == i || selfData().myRank == i + 1) {
 			int offsetRank = selfData().myRank == i ? selfData().numDev - 1 : 0;
 			cudaSetDevice(offsetRank);
-			ncclCommInitRank(&(selfData().communicators[i]), selfData().numRank * selfData().numDev, selfData().ncclId, selfData().myRank * selfData().numDev + offsetRank); // Create communicators for neighbor exchange (i.e. one communicator for adjacent pair of processes).		
+			ncclCommInitRank(&(selfData().communicators[i]), 2, selfData().ncclId, selfData().myRank * selfData().numDev + offsetRank); // Create communicators for neighbor exchange (i.e. one communicator for adjacent pair of processes).		
 		}
 	}
 	ncclGroupEnd();
+	std::cout << "Reached end of backend constructor!" << std::endl;
 }
 	
 
