@@ -49,8 +49,7 @@ class Backend
 		char hostname[1024];
 		float** sendBuff;
 		float** recvBuff;
-		ncclUniqueId ncclId;
-		// ncclComm_t communicators[numRank]; // Code won't work because numRank is not known.
+		std::vector<ncclUniqueId> ncclIds;
 		std::vector<ncclComm_t> communicators;
     };
     auto selfData() -> Data_t&; 
