@@ -27,7 +27,13 @@ dGrid::dGrid(const Neon::Backend&  backend,
     mData = std::make_shared<Data>(backend);
 
 	// Ted: TODO: Update the new way of identifying distributed or not. Problem here is <dGrid> is only for distributed system, not single machine case anymore.
-	mData->zOrigin = backend.selfData().myRank * (uniformProc + 1); // Ted: Compute the z-dimension index of the origin.
+	// Ted: Compute the z-dimension index of the origin:
+	if (backend.selfData().myRank < reminderProc) {
+		mData->zOrigin = backend.selfData().myRank * (uniformProc + 1);
+	} else {
+		mData->zOrigin = reminderProc * (uniformProc + 1) + (backend.selfData().myRank - reminderProc) * uniformProc;
+	}
+
 
     const index_3d defaultBlockSize(256, 1, 1);
 
