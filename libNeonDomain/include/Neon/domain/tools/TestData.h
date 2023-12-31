@@ -288,9 +288,13 @@ auto TestData<G, T, C>::resetValuesToRandom(int min, int max) -> void
     for (int i = 0; i < nFields; i++) {
         auto fieldName = FieldNamesUtils::fromInt(i);
         auto fieldStrig = FieldNamesUtils::toString(fieldName);
-
+		
         mIODomains[i].resetValuesToRandom(min, max);
-        mFields[i].ioFromDense(mIODomains[i].getData());
+		if (mGrid.getBackend().selfData().distributed) {
+        	mFields[i].ioFromDenseDistributed(mIODomains[i].getData(), mGrid.mData->zOrigin);
+		} else {
+        	mFields[i].ioFromDense(mIODomains[i].getData());
+		}
         mFields[i].updateDeviceData(0);
     }
     mGrid.getBackend().sync(0);

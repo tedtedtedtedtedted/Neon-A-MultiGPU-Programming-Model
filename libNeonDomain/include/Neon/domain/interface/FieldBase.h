@@ -133,6 +133,12 @@ class FieldBase
     auto ioFromDense(const Neon::IODense<ImportType, ImportIndex>&)
         -> void;
 
+	template <typename ImportType = T,
+              typename ImportIndex = int>
+	auto ioFromDenseDistributed(const Neon::IODense<ImportType, ImportIndex>&, int)
+    	-> void; // TODO: Ted: Perhaps future remove second argument and move it to <mStorage> for better style and to match signature.
+
+
     template <typename VtiExportType = T>
     auto ioToVtk(const std::string& fileName,
                  const std::string& fieldName,

@@ -295,6 +295,40 @@ auto FieldBase<T, C>::ioFromDense(const Neon::IODense<ImportType, ImportIndex>& 
 }
 
 template <typename T, int C>
+template <typename ImportType,
+          typename ImportIndex>
+auto FieldBase<T, C>::ioFromDenseDistributed(const Neon::IODense<ImportType, ImportIndex>& ioDense, int zOrigin)
+    -> void // TODO: Ted: Perhaps future remove second argument and move it to <mStorage> for better style and to match signature.
+{
+    {
+        const int cardDense = ioDense.getCardinality();
+        const int cardGrid = getCardinality();
+
+		// TODO: Ted: Modify to corresponding distributed dimension check.
+        // const auto dimensionDense = ioDense.getDimension().template newType<size_t>();
+        // const auto dimensionGrid = getDimension().template newType<size_t>();
+
+        const bool cardinalityCheckFailed = (cardDense != cardGrid);
+        // const bool dimensionCheckFailed = dimensionDense != dimensionGrid;
+
+        // if (cardinalityCheckFailed || dimensionCheckFailed) {
+        if (cardinalityCheckFailed) {
+            NeonException exp("FieldBase Interface - ioFromDense");
+            exp << "FieldBase and ioDense are not compatible";
+            NEON_THROW(exp);
+        }
+    }
+    forEachActiveCell([&](const Neon::index_3d& point,
+                          const int&            cardinality,
+                          T&                    value) {
+		// Add z-coordinate of <point> by <mGrid->mData->zOrigin>:
+		Neon::index_3d pointShifted(point.x, point.y, point.z + zOrigin); 
+        value = ioDense(pointShifted.template newType<ImportIndex>(), cardinality);
+    });
+}
+
+
+template <typename T, int C>
 template <typename VtiExportType>
 auto FieldBase<T, C>::ioToVtk(const std::string& fileName,
                               const std::string& FieldName,
