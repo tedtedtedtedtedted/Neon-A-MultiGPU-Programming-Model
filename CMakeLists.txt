@@ -51,6 +51,21 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Ted: MPI:
+find_package(MPI REQUIRED) # TODO: Ted: Is it necessary to make it <REQUIRED> if NOT working with distirbuted systems?
+if (NOT MPI_FOUND)
+	message(FATAL_ERROR "Neon could not find MPI")
+endif ()
+include_directories(${MPI_INCLUDE_PATH}) # // TODO: Ted: Is it even necessary to <include_directories> here considering that OpenMP below didn't?
+# Ted: The <add_executable> and <target_link_libraries> steps are written in <libNeonSkeleton/tests/unit/skeleton-stencil-distributed/CMakeLists.txt>. // TODO: Ted: Or should we use <INTERFACE> here like OpenMP below? 
+
+# Ted: NCCL (Graham):
+set(NCCL_DIR "/cvmfs/soft.computecanada.ca/easybuild/software/2023/x86-64-v3/CUDA/gcccore/cuda12.2/nccl/2.18.3") # TODO: Ted: This needs to be adapted depending on the machine.
+include_directories(${NCCL_DIR}/include)
+# Ted; NCCL (My local machine):
+# set(NCCL_DIR $ENV{NCCL_HOME})
+# include_directories(${NCCL_DIR}/include)
+
 # Definition of the target interface NeonDeveloperLib
 add_library(NeonDeveloperLib INTERFACE)
 target_compile_features(NeonDeveloperLib INTERFACE cxx_std_17)
