@@ -114,5 +114,5 @@ TEST(singleStencil, dGrid)
     using Grid = Neon::dGrid;
     using Type = int32_t;
     constexpr int C = 0;
-    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, nGpus); // Ted: For now, make <nGpuTest> range singleton for simplicity.
+    runAllTestConfiguration<Grid, Type, 0>("dGrid", singleStencil<Grid, Type, C>, nGpus, nGpus); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
 }
