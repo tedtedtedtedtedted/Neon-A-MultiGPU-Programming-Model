@@ -15,6 +15,8 @@
 // #include "Neon/core/types/devType.h"
 #include "Neon/set/DataSet.h"
 
+#include "nccl.h" // TODO: Ted: Why not found by CCLS?
+
 namespace Neon {
 using StreamIdx = int;
 using EventIdx = int;
@@ -39,6 +41,10 @@ class Backend
         std::vector<Neon::set::GpuEventSet> userEventSetVec;
 
         std::shared_ptr<Neon::set::DevSet> devSet;
+
+		// Ted: Below for distributed systems:
+		bool distributed;
+		int myRank, numProc;
     };
     auto selfData() -> Data_t&;
     auto selfData() const -> const Data_t&;
@@ -67,6 +73,13 @@ class Backend
     Backend(const std::vector<int>& devIds /*!  Vectors of device ids. There are CUDA device ids */,
             Neon::Runtime           runtime /*! Type of runtime to use */);
 
+	/**
+	 * Ted: Distributed systems.
+	 */
+	Backend(const std::vector<int>& 	devIds, /*!  Vectors of device ids. There are CUDA device ids */
+			Neon::Runtime 				runtime, /*! Type of runtime to use */
+			bool 						distributed);
+
     /**
      *
      */
@@ -85,6 +98,9 @@ class Backend
      */
     Backend(const Neon::set::DevSet&    devSet,
             const Neon::set::StreamSet& streamSet);
+
+	// Ted: Destructor for distributed systems.
+	~Backend();
 
     template <typename T>
     auto newDataSet()
@@ -108,6 +124,12 @@ class Backend
 
     auto getDeviceCount()
         const -> int;
+
+	auto getProcessCount() 
+		const -> int;
+
+	auto getRank()
+		const -> int;
 
     auto clone(Neon::Runtime runtime = Neon::Runtime::system) -> Backend;
 
@@ -135,6 +157,10 @@ class Backend
     auto isLastDevice(Neon::SetIdx)
         const
         -> bool;
+
+	auto isDistributed()
+		const 
+		-> bool;
 
     /**
      * Returns the mode for the kernel lauch
@@ -237,6 +263,14 @@ class Backend
     auto syncAll()
         const
         -> void;
+
+	auto syncNodes()
+		const
+		-> void;
+
+	auto syncAllDistributed()
+		const
+		-> void;
 
     /**
      *

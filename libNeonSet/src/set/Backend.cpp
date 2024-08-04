@@ -3,10 +3,14 @@
 #include <functional>
 #include <future>
 #include <iostream>
+#include <stdexcept>
 #include <thread>
 #include <tuple>
 #include <vector>
+#include "Neon/core/types/DeviceType.h"
 #include "Neon/set/DevSet.h"
+#include "cuda_runtime_api.h"
+#include <mpi.h>
 
 namespace Neon {
 
@@ -54,6 +58,41 @@ Backend::Backend(const std::vector<int>& devIds,
     assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
 }
 
+
+/**
+ * Ted: Distributed systems backend constructor. 
+ **/
+Backend::Backend(const std::vector<int>& 	devIds,
+				 Neon::Runtime 				runtime,
+				 bool						distributed)
+{
+	assert(distributed == true); // TODO: Temporary check. 
+	assert(runtime == Neon::Runtime::stream); // TODO: Temporary check.
+	
+    m_data = std::make_shared<Data_t>();
+
+	// Initializing MPI:
+	MPI_Init(nullptr, nullptr); // Ted: Don't think we need <&agrc> and <&argv> because not passing arguments and no desire to modifying command line arguments.
+	MPI_Comm_rank(MPI_COMM_WORLD, &(selfData().myRank));
+	MPI_Comm_size(MPI_COMM_WORLD, &(selfData().numProc));
+
+	selfData().distributed = distributed;
+    selfData().runtime = runtime;
+    selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
+    selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
+    h_initFirstEvent();
+    assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
+	
+	// To ensure MPI ranks are from 0 and contiguous:
+	// TODO: Future will broadcast MPI ranks to all processes then readjust the MPI ranks to satisfy this requirement.
+	if (selfData().myRank >= selfData().numProc) {
+		throw std::runtime_error("Ted: MPI Ranks Not As Expected!!!"); // TODO: Will in future replace this with Neon error mechanism.
+	}
+}
+
+
+
+
 Backend::Backend(const Neon::set::DevSet& devSet,
                  Neon::Runtime            runtime)
 {
@@ -86,6 +125,13 @@ Backend::Backend(const std::vector<int>&     devIds,
     selfData().streamSetVec.push_back(streamSet);
     h_initFirstEvent();
     assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
+}
+
+Backend::~Backend()
+{
+	if (isDistributed()) {
+		MPI_Finalize();
+	}
 }
 
 auto Backend::clone(Neon::Runtime runtime) -> Backend
@@ -418,6 +464,27 @@ auto Backend::syncAll() const -> void
     NEON_THROW(exp);
 }
 
+// Ted: MPI_Barrier all nodes/processes without synchronize GPUs/devices:
+auto Backend::syncNodes() const -> void
+{
+	assert(runtime() == Neon::Runtime::stream); // TODO: Ted: For now require this. Future extends to be compatible with e.g. <Neon::Runtime::openmp>.
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
+// Ted: Synchronize everything in the distributed systems (i.e. blocks each node/process untill all Streams finish, then MPI_Barrier).
+auto Backend::syncAllDistributed() const -> void
+{
+	// TODO: Ask Max why NOT in <Backend::syncAll()> just do <cudaDeviceSynchronize()> for all GPUs on the node like we do here?
+	assert(runtime() == Neon::Runtime::stream); // TODO: Ted: For now require this. Future extends to be compatible with e.g. <Neon::Runtime::openmp>.
+	int numDev = getDeviceCount();
+	for (int i = 0; i < numDev; ++i) { // TODO: Ted: A temporary correctness solution. Also need Neon error checking.
+		cudaSetDevice(i);
+		cudaDeviceSynchronize();
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
 auto Backend::sync(int idx) const -> void
 {
     if (runtime() == Neon::Runtime::openmp) {
@@ -578,6 +645,20 @@ auto Backend::getDeviceCount() const -> int
     return m_data->devSet->setCardinality();
 }
 
+// Ted: Distributed systems number of processes/nodes.
+auto Backend::getProcessCount() const -> int 
+{
+	assert(isDistributed());
+	return m_data->numProc;
+}
+
+// Ted: Distributed sysmems process rank.
+auto Backend::getRank() const -> int
+{
+	assert(isDistributed());
+	return m_data->myRank;
+}
+
 auto Backend::helpDeviceToDeviceTransferByte(int                     streamId,
                                              size_t                  bytes,
                                              Neon::set::TransferMode transferMode,
@@ -610,8 +691,16 @@ auto Backend::isFirstDevice(Neon::SetIdx id) const -> bool
 {
     return id.idx() == 0;
 }
+
 auto Backend::isLastDevice(Neon::SetIdx id) const -> bool
 {
     return id.idx() == (deviceCount() - 1);
 }
+
+// Ted: Check if the backend is distributed systems (i.e. multi-node).
+auto Backend::isDistributed() const -> bool 
+{
+	return m_data->distributed;
+}
+
 }  // namespace Neon
