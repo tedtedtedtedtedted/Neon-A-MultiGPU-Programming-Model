@@ -67,7 +67,7 @@ void singleStencil(TestData<G, T, C>& data)
 
     const T val = 89;
 
-    data.getBackend().syncAll(); // TODO: Ted: Hide the distributed <MPI_Barrier> in this function because the decision for distributed-systems or not should be hidden in <Backend>, NOT in the test.
+    data.getBackend().syncAllDistributed(); // TODO: Ted: Hide the distributed <MPI_Barrier> in this function because the decision for distributed-systems or not should be hidden in <Backend>, NOT in the test.
 
     data.resetValuesToRandom(1, 50);
 
@@ -99,7 +99,7 @@ void singleStencil(TestData<G, T, C>& data)
             data.laplace(Y, X);
         }
     }
-    data.getBackend().syncAll(); // TODO: Ted: Hide the distributed <MPI_Barrier> in this function because the decision for distributed-systems or not should be hidden in <Backend>, NOT in the test.
+    data.getBackend().syncAllDistributed(); // TODO: Ted: Hide the distributed <MPI_Barrier> in this function because the decision for distributed-systems or not should be hidden in <Backend>, NOT in the test.
 
     bool isOk = data.compare(FieldNames::X); // TODO: Ted: Hide the distributed data comparison in <data.compare> function.
     isOk = isOk && data.compare(FieldNames::Y); // TODO: Ted: Hide the distributed data comparison in <data.compare> function.

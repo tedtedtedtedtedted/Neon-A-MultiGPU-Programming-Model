@@ -37,6 +37,7 @@ void runAllTestConfiguration(const std::string&                      gname,
 
         std::vector<Neon::index_3d> dimTest{{64, 16, 252}};
         // std::vector<Neon::Runtime>  runtimeE{Neon::Runtime::openmp}; // TODO: Ted: Why we want to test over <Neon::Runtime::openmp>?
+		std::vector<Neon::Runtime> runtimeE;
         if (Neon::sys::globalSpace::gpuSysObjStorage.numDevs() > 0) { // TODO: Ted: Isn't this redundant given above if-statement?
             runtimeE.push_back(Neon::Runtime::stream);
         }
@@ -58,7 +59,7 @@ void runAllTestConfiguration(const std::string&                      gname,
                                 ids.push_back(i % maxnGPUs);
                             }
 
-                            Neon::Backend       backend(ids, runtime); // TODO: Ted: Write a distributed backend.
+                            Neon::Backend       backend(ids, runtime, true); // TODO: Ted: Write a distributed backend.
                             Neon::MemoryOptions memoryOptions = backend.getMemoryOptions();
 
                             TestData<G, T, C> testData(backend,

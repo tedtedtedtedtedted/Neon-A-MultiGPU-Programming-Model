@@ -35,6 +35,7 @@ void runAllTestConfiguration(
 
     std::vector<Neon::index_3d> dimTest{{10, 1, 77}};
     // std::vector<Neon::Runtime>  runtimeE{Neon::Runtime::openmp}; // TODO: Ted: Why do we want to test over <Neon::Runtime::openmp>?
+	std::vector<Neon::Runtime> runtimeE;
     if (Neon::sys::globalSpace::gpuSysObjStorage.numDevs() > 0) {
         runtimeE.push_back(Neon::Runtime::stream);
     }
@@ -71,7 +72,7 @@ void runAllTestConfiguration(
                             ids.push_back(i % maxnGPUs);
                         }
 
-                        Neon::Backend       backend(ids, runtime);
+                        Neon::Backend       backend(ids, runtime, true);
                         Neon::MemoryOptions memoryOptions = backend.getMemoryOptions();
 
                         TestData<G, T, C> testData(backend,
@@ -90,51 +91,51 @@ void runAllTestConfiguration(
 }
 
 
-template <typename G, typename T, int C>
-void runOneTestConfiguration(const std::string&                      gname,
-                             std::function<void(TestData<G, T, C>&)> f,
-                             int                                     nGpus,
-                             int                                     minNumGpus = 1)
-{
-    std::vector<int> nGpuTest{2};
-    std::vector<int> cardinalityTest{1};
-
-    std::vector<Neon::index_3d> dimTest{{1, 1, 10}};
-    std::vector<Neon::Runtime>  runtimeE{Neon::Runtime::openmp};
-    if (Neon::sys::globalSpace::gpuSysObjStorage.numDevs() > 0) {
-        runtimeE.push_back(Neon::Runtime::stream);
-    }
-
-    std::vector<Geometry> geos = std::vector<Geometry>{
-        Geometry::FullDomain};
-
-    for (const auto& dim : dimTest) {
-        for (const auto& card : cardinalityTest) {
-            for (auto& geo : geos) {
-                for (const auto& ngpu : nGpuTest) {
-                    for (const auto& runtime : runtimeE) {
-                        int maxnGPUs = Neon::set::DevSet::maxSet().setCardinality();
-
-                        std::vector<int> ids;
-                        for (int i = 0; i < ngpu; i++) {
-                            ids.push_back(i % maxnGPUs);
-                        }
-
-                        Neon::Backend       backend(ids, runtime);
-                        Neon::MemoryOptions memoryOptions = backend.getMemoryOptions();
-
-                        TestData<G, T, C> testData(backend,
-                                                   dim,
-                                                   card,
-                                                   memoryOptions,
-                                                   geo);
-
-                        NEON_INFO(testData.toString());
-
-                        f(testData);
-                    }
-                }
-            }
-        }
-    }
-}
+// template <typename G, typename T, int C>
+// void runOneTestConfiguration(const std::string&                      gname,
+//                              std::function<void(TestData<G, T, C>&)> f,
+//                              int                                     nGpus,
+//                              int                                     minNumGpus = 1)
+// {
+//     std::vector<int> nGpuTest{2};
+//     std::vector<int> cardinalityTest{1};
+// 
+//     std::vector<Neon::index_3d> dimTest{{1, 1, 10}};
+//     std::vector<Neon::Runtime>  runtimeE{Neon::Runtime::openmp};
+//     if (Neon::sys::globalSpace::gpuSysObjStorage.numDevs() > 0) {
+//         runtimeE.push_back(Neon::Runtime::stream);
+//     }
+// 
+//     std::vector<Geometry> geos = std::vector<Geometry>{
+//         Geometry::FullDomain};
+// 
+//     for (const auto& dim : dimTest) {
+//         for (const auto& card : cardinalityTest) {
+//             for (auto& geo : geos) {
+//                 for (const auto& ngpu : nGpuTest) {
+//                     for (const auto& runtime : runtimeE) {
+//                         int maxnGPUs = Neon::set::DevSet::maxSet().setCardinality();
+// 
+//                         std::vector<int> ids;
+//                         for (int i = 0; i < ngpu; i++) {
+//                             ids.push_back(i % maxnGPUs);
+//                         }
+// 
+//                         Neon::Backend       backend(ids, runtime);
+//                         Neon::MemoryOptions memoryOptions = backend.getMemoryOptions();
+// 
+//                         TestData<G, T, C> testData(backend,
+//                                                    dim,
+//                                                    card,
+//                                                    memoryOptions,
+//                                                    geo);
+// 
+//                         NEON_INFO(testData.toString());
+// 
+//                         f(testData);
+//                     }
+//                 }
+//             }
+//         }
+//     }
+// }

@@ -13,11 +13,12 @@
 template <typename G, typename T, int C>
 auto oneStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> void
 {
-    data.resetValuesToLinear(1, 100);
-    using namespace Neon::domain::tool::testing;
-
     auto& grid = data.getGrid();
     auto  bk = grid.getBackend();
+	bk.syncAllDistributed();
+
+    data.resetValuesToLinear(1, 100);
+    using namespace Neon::domain::tool::testing;
 
     {  // Neon
 
@@ -43,7 +44,7 @@ auto oneStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> vo
             data.sum(X, Y);
         }
     }
-    bk.syncAll();
+    bk.syncAllDistributed();
     bool isOk = data.compare(FieldNames::X);
     isOk = isOk && data.compare(FieldNames::Y);
     ASSERT_TRUE(isOk);
@@ -52,11 +53,12 @@ auto oneStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> vo
 template <typename G, typename T, int C>
 auto twoStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> void
 {
-    data.resetValuesToLinear(1, 100);
-    using namespace Neon::domain::tool::testing;
-
     auto& grid = data.getGrid();
     auto  bk = grid.getBackend();
+	bk.syncAllDistributed();
+
+    data.resetValuesToLinear(1, 100);
+    using namespace Neon::domain::tool::testing;
 
     int const nIterations = 10;
 
@@ -92,7 +94,7 @@ auto twoStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> vo
         }
     }
 
-    bk.syncAll();
+    bk.syncAllDistributed();
     bool isOk = data.compare(FieldNames::X);
     isOk = isOk && data.compare(FieldNames::Y);
     isOk = isOk && data.compare(FieldNames::Z);
@@ -102,11 +104,12 @@ auto twoStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> vo
 template <typename G, typename T, int C>
 auto threeLevelXPYTree(Neon::domain::tool::testing::TestData<G, T, C>& data) -> void
 {
+	auto& grid = data.getGrid();
+    auto  bk = grid.getBackend();
+	bk.syncAllDistributed();
+
     data.resetValuesToLinear(1, 100);
     using namespace Neon::domain::tool::testing;
-
-    auto& grid = data.getGrid();
-    auto  bk = grid.getBackend();
 
     int const nIterations = 10;
 
@@ -151,7 +154,7 @@ auto threeLevelXPYTree(Neon::domain::tool::testing::TestData<G, T, C>& data) -> 
         }
     }
 
-    bk.syncAll();
+    bk.syncAllDistributed();
     bool isOk = data.compare(FieldNames::X);
     isOk = isOk && data.compare(FieldNames::Y);
     isOk = isOk && data.compare(FieldNames::Z);
