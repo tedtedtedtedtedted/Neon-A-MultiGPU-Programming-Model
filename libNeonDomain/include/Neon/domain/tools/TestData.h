@@ -166,6 +166,7 @@ auto TestData<G, T, C>::getDimention() const -> Neon::index_3d
     return mDimension;
 }
 
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 TestData<G, T, C>::TestData(const Neon::Backend&         backend,
                             Neon::index_3d               dimension,
@@ -256,6 +257,7 @@ auto TestData<G, T, C>::getGrid() -> Grid&
     return mGrid;
 }
 
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 auto TestData<G, T, C>::resetValuesToLinear(Type offset, Type offsetBetweenFields)
     -> void
@@ -265,12 +267,21 @@ auto TestData<G, T, C>::resetValuesToLinear(Type offset, Type offsetBetweenField
         auto fieldStrig = FieldNamesUtils::toString(fieldName);
 
         mIODomains[i].resetValuesToLinear(offset + i * offsetBetweenFields);
-        mFields[i].ioFromDense(mIODomains[i].getData());
+        if(mGrid.getBackend().isDistributed()) { // TODO: Ted: Temporary solution, redesign later!!!
+			mFields[i].ioFromDenseDistributed(mIODomains[i].getData()); // TODO: Ted: <FieldBase::ioToDense()> in below <TestData::compare()> function can stay unchanged, but here <FieldBase::ioFromDense()> needs to be adapted to distributed systems by restricting to the node/process.
+		} else {
+			mFields[i].ioFromDense(mIODomains[i].getData()); // TODO: Ted: <FieldBase::ioToDense()> in below <TestData::compare()> function can stay unchanged, but here <FieldBase::ioFromDense()> needs to be adapted to distributed systems by restricting to the node/process.
+		}
+		
         mFields[i].updateDeviceData(0);
     }
-    mGrid.getBackend().sync(0);
+    mGrid.getBackend().sync(0); // TODO: Ted: Ask Max: Is there no sync inside <updateDeviceData> already?
+	if (mGrid.getBackend().isDistributed()) { // TODO: Ted: Actually, maybe merge this check distributed systems logic into <Backend::syncNodes()> function.
+		mGrid.getBackend().syncNodes(); // TODO: Ted: Likely there should be a distributed systems sync here because the true purpose of <mGrid.getBackend().sync(0)> is to wait for the data transfer job to be done, but in the context of distributed systems, this data trasnfer job is done iff all nodes/processes are done!
+	}
 }
 
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 auto TestData<G, T, C>::resetValuesToRandom(int min, int max) -> void
 {
@@ -314,6 +325,8 @@ auto TestData<G, T, C>::resetValuesToConst(Type offset, Type offsetBetweenFields
     }
     mGrid.getBackend().sync(0);
 }
+
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 template <typename LambdaCompare>
 auto TestData<G, T, C>::compare(FieldNames    name,
@@ -321,19 +334,26 @@ auto TestData<G, T, C>::compare(FieldNames    name,
     -> void
 {
     auto idx = FieldNamesUtils::toInt(name);
-    mFields[idx].updateHostData(0);
-    mGrid.getBackend().sync(0);
+    mFields[idx].updateHostData(0); 
+    mGrid.getBackend().sync(0); // TODO: Ted: Ask Max: Is there no sync inside <updateDeviceData> already?
+	if (mGrid.getBackend().isDistributed()) { // TODO: Ted: Actually, maybe merge this check distributed systems logic into <Backend::syncNodes()> function.
+		mGrid.getBackend().syncNodes(); // TODO: Ted: Likely there should be a distributed systems sync here because the true purpose of <mGrid.getBackend().sync(0)> is to wait for the data transfer job to be done, but in the context of distributed systems, this data trasnfer job is done iff all nodes/processes are done!
+	}
 
     auto                                     tmpDense = mFields[idx].template ioToDense<Type>();
     Neon::domain::tool::testing::IODomain<T> tmpIODomain(tmpDense, mIODomains[idx].getMask(), mIODomains[idx].getOutsideValue());
 
-    mIODomains[idx].forEachActive([&](const Neon::index_3d&                                          idx,
-                                      int                                                            cardinality,
-                                      const typename Neon::domain::tool::testing::IODomain<T>::Type& goldenVal,
-                                      const typename Neon::domain::tool::testing::IODomain<T>::Type& testVal) {
-        lambdaCompare(idx, cardinality, goldenVal, testVal);
-    },
-                                  tmpIODomain);
+	// Ted: Below want to adapt to local-to-node/process data compare, so above stays unchanged, then when all node/process compare, success iff all node/process success: Do this in <IODomain::forEachActiveDistributedGlobalToLocal()>!
+
+    mIODomains[idx].forEachActiveDistributedGlobalToLocal(mFields[idx].getZOrigin(),
+		   												  mFields[idx].getDimension().z,	  
+														  [&](const Neon::index_3d&                                          point, // TODO: Ted: Modified from <idx> to <point>. Ask Max why wouldn't it be a naming conflict because this lambda captures by refernece and above we already have <idx> variable.
+															  int                                                            cardinality,
+                                      						  const typename Neon::domain::tool::testing::IODomain<T>::Type& goldenVal,
+                                      						  const typename Neon::domain::tool::testing::IODomain<T>::Type& testVal) {
+       															  lambdaCompare(point, cardinality, goldenVal, testVal);
+    														  },
+                                  						  tmpIODomain);
 }
 
 template <typename G, typename T, int C>
@@ -395,6 +415,7 @@ auto TestData<G, T, C>::axpy(const Type* alpha, IODomain& A, IODomain& B)
                                 A, B);
 }
 
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 auto TestData<G, T, C>::sum(IODomain& A, IODomain& B)
     -> void
@@ -408,6 +429,7 @@ auto TestData<G, T, C>::sum(IODomain& A, IODomain& B)
                                 A, B);
 }
 
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 auto TestData<G, T, C>::laplace(IODomain& A, NEON_IO IODomain& B)
     -> void
@@ -442,6 +464,7 @@ auto TestData<G, T, C>::laplace(IODomain& A, NEON_IO IODomain& B)
                                          A, B);
 }
 
+// TODO: Ted: Distributed systems extension.
 template <typename G, typename T, int C>
 auto TestData<G, T, C>::compare(FieldNames         name,
                                 [[maybe_unused]] T tollerance) -> bool

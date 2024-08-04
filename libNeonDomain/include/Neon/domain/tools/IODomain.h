@@ -109,6 +109,16 @@ struct IODomain
                        IODomain<ExportTypeVariadic_ta>&... otherDense /**< Optional. Other fields that may be needed during the field visit */)
         -> void;
 
+	// Ted: TODO: Temporary solution, will redesign later!
+    template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+    auto forEachActiveDistributedGlobalToLocal(int zOrigin,
+											   int zDim,
+											   const Lambda_ta& lambda /**< User function                                                    */,
+                       						   IODomain<ExportTypeVariadic_ta>&... otherDense /**< Optional. Other fields that may be needed during the field visit */)
+        -> void;
+
+
+
     /**
      * For each operator to visit all field elements in parallel.
      * Read only mode
@@ -322,6 +332,7 @@ auto IODomain<ExportType, intType_ta>::getReference(const Integer_3d<intType_ta>
     return val;
 }
 
+
 template <typename ExportType, typename intType_ta>
 template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
 auto IODomain<ExportType, intType_ta>::forEachActive(const Lambda_ta& userLambda,
@@ -335,12 +346,41 @@ auto IODomain<ExportType, intType_ta>::forEachActive(const Lambda_ta& userLambda
         for (int cc = 0; cc < this->getCardinality(); cc++) {
             userLambda(idx, cc, getReference(idx, cc), otherDense.getReference(idx, cc)...);
         }
-    });
+	});
+}
+
+
+
+template <typename ExportType, typename intType_ta>
+template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
+auto IODomain<ExportType, intType_ta>::forEachActiveDistributedGlobalToLocal(int zOrigin,
+																			 int zDim,
+																			 const Lambda_ta& userLambda,
+                                                     						 IODomain<ExportTypeVariadic_ta>&... otherDense) -> void
+{
+	// TODO: Ted: Might be a temporary implementation, might switch design in future:
+	mMask.forEach([&, this](const Neon::index_3d& point, int /*card*/, typename decltype(mMask)::Type& val) -> void {
+        const bool isA = val == InsideFlag;
+        if (!isA) {
+            return;
+        }
+		
+		// Ted: Do the check on <point> here instead of in lower level (<IODense>) or higher level (<TestData>) because in lower-level, the variadic template argument is NOT passed, so the control of <point> must be here, and in higher level we can't distinguish local v.s. global point anymore.	
+		if (zOrigin <= point.z && point.z < zOrigin + zDim) {
+			Neon::index_3d global_point = point;
+			Neon::index_3d local_point = point;
+			local_point.z -= zOrigin;	
+
+	        for (int cc = 0; cc < this->getCardinality(); cc++) {
+    	        userLambda(global_point, cc, getReference(global_point, cc), otherDense.getReference(local_point, cc)...);
+			}
+		}
+	});
 }
 
 template <typename ExportType, typename intType_ta>
 template <typename Lambda_ta, typename... ExportTypeVariadic_ta>
-auto IODomain<ExportType, intType_ta>::forEachActive(const Lambda_ta& lambda,
+auto IODomain<ExportType, intType_ta>::forEachActive(const Lambda_ta& lambda, // TODO: Ted: Ask Max: Shouldn't it be <userLambda> as called below? How come this compiles?
                                                      const IODomain<ExportTypeVariadic_ta>&... otherDense) const -> void
 {
     mMask.forEach([&, this](const Neon::index_3d& idx, int card, Type& val) -> void {
