@@ -33,7 +33,8 @@ class FieldBase
               Neon::MemoryOptions            memoryOptions,
               Neon::domain::haloStatus_et::e haloStatus,
               const Vec_3d<double>&          spacing, /*!             Spacing, i.e. size of a voxel            */
-              const Vec_3d<double>&          origin);
+              const Vec_3d<double>&          origin,
+			  int					 		 zOrigin);
 
 
     virtual auto isInsideDomain(const Neon::index_3d& idx) const
@@ -85,6 +86,9 @@ class FieldBase
     auto getClassName() const
         -> const std::string&;
 
+	auto getZOrigin() const
+		-> int; 
+
     /**
      * For each operator that target active cells.
      * Index values are provided in RW mode.
@@ -93,6 +97,12 @@ class FieldBase
      * @param fun
      */
     virtual auto forEachActiveCell(const std::function<void(const Neon::index_3d&,
+                                                            const int& cardinality,
+                                                            T&)>&     fun,
+                                   Neon::computeMode_t::computeMode_e mode = Neon::computeMode_t::computeMode_e::par) -> void;
+
+	// TODO: Ted: This is a temporary solution because need to confirm with Max for a good design:
+    virtual auto forEachActiveCellDistributed(const std::function<void(const Neon::index_3d&,
                                                             const int& cardinality,
                                                             T&)>&     fun,
                                    Neon::computeMode_t::computeMode_e mode = Neon::computeMode_t::computeMode_e::par) -> void;
@@ -133,6 +143,11 @@ class FieldBase
     auto ioFromDense(const Neon::IODense<ImportType, ImportIndex>&)
         -> void;
 
+    template <typename ImportType = T,
+              typename ImportIndex = int>
+    auto ioFromDenseDistributed(const Neon::IODense<ImportType, ImportIndex>&)
+        -> void;
+
     template <typename VtiExportType = T>
     auto ioToVtk(const std::string& fileName,
                  const std::string& fieldName,
@@ -154,6 +169,7 @@ class FieldBase
         Neon::domain::haloStatus_et::e haloStatus;
         Vec_3d<double>                 spacing /**< Spacing, i.e. size of a voxel */;
         Vec_3d<double>                 origin /**< Origin */;
+		int							   zOrigin; // Ted: The true global z-index of the origin of the partition possessed by the current node/process in the global grid in distributed systems.
 
         Storage();
 
@@ -166,7 +182,8 @@ class FieldBase
                 Neon::MemoryOptions            memoryOptions,
                 Neon::domain::haloStatus_et::e haloStatus,
                 const Vec_3d<double>&          spacing,
-                const Vec_3d<double>&          origin);
+                const Vec_3d<double>&          origin,
+				int							   zOrigin); 
     };
 
     std::shared_ptr<Storage> mStorage;

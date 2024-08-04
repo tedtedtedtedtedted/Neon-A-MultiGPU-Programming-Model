@@ -7,7 +7,8 @@ dGrid::dGrid()
     mData = std::make_shared<Data>();
 }
 
-dGrid::Data::Data(const Neon::Backend& backend)
+dGrid::Data::Data(const Neon::Backend& backend,
+				  const Neon::int32_3d& dimension)
 {
     partitionDims = backend.devSet().newDataSet<index_3d>({0, 0, 0});
     firstZIndex = backend.devSet().newDataSet<index_t>(0);
@@ -16,6 +17,19 @@ dGrid::Data::Data(const Neon::Backend& backend)
 
     halo = index_3d(0, 0, 0);
     reduceEngine = Neon::sys::patterns::Engine::cuBlas;
+	
+	// Ted: Below added member for <dGrid> to find its global origins after partition-by-node/process in distributed systems:
+	if (!backend.isDistributed()) {
+		zOrigin = 0;
+	} else {
+		int uniformProc = dimension.z / backend.getProcessCount(); // TODO: Ted: Ask Max need <int32_t>?
+		int reminderProc = dimension.z % backend.getProcessCount();
+		if (backend.getRank() < reminderProc) {
+			zOrigin = backend.getRank() * (uniformProc + 1);
+		} else {
+			zOrigin = reminderProc * (uniformProc + 1) + (backend.getRank() - reminderProc) * uniformProc;
+		}
+	}
 }
 
 auto dGrid::helpFieldMemoryAllocator()
@@ -133,9 +147,18 @@ auto dGrid::getProperties(const index_3d& idx)
     }
     return cellProperties;
 }
+
 auto dGrid::helpGetFirstZindex()
     const -> const Neon::set::DataSet<int32_t>&
 {
     return mData->firstZIndex;
 }
+
+// Ted: <mData->zOrigin> is the true globabl z-index of the origin of the partitioned grid of its poccessing node/process in distributed systems.
+auto dGrid::helpGetZOrigin()
+	const -> int // TODO: Ted: Is const reference unnecessary here because <int> type is not much overhead to be copied-by-value?
+{
+	return mData->zOrigin;
+}
+
 }  // namespace Neon::domain::details::dGrid

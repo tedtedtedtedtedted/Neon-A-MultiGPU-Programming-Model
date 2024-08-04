@@ -10,7 +10,8 @@ auto GridBase::init(const std::string&                gridImplementationName,
                     const Neon::set::DataSet<size_t>& nPartitionElements,
                     const Neon::index_3d&             defaultBlockSize,
                     const Vec_3d<double>&             spacingData,
-                    const Vec_3d<double>&             origin) -> void
+                    const Vec_3d<double>&             origin,
+					int								  zOrigin) -> void
 {
     mStorage->backend = backend;
     mStorage->dimension = dimension;
@@ -19,6 +20,7 @@ auto GridBase::init(const std::string&                gridImplementationName,
     mStorage->spacing = spacingData;
     mStorage->origin = origin;
     mStorage->gridImplementationName = gridImplementationName;
+	mStorage->zOrigin = zOrigin;
 
     for (const auto& dw : DataViewUtil::validOptions()) {
         mStorage->defaults.launchParameters[DataViewUtil::toInt(dw)] = backend.devSet().newLaunchParameters();
@@ -38,7 +40,8 @@ GridBase::GridBase(const std::string&                gridImplementationName,
                    const Neon::set::DataSet<size_t>& nPartitionElements,
                    const Neon::index_3d&             defaultBlockSize,
                    const Vec_3d<double>&             spacingData,
-                   const Vec_3d<double>&             origin)
+                   const Vec_3d<double>&             origin,
+				   int								 zOrigin)
     : mStorage(std::make_shared<GridBase::Storage>())
 {
     init(gridImplementationName,
@@ -48,7 +51,8 @@ GridBase::GridBase(const std::string&                gridImplementationName,
          nPartitionElements,
          defaultBlockSize,
          spacingData,
-         origin);
+         origin,
+		 zOrigin);
 }
 
 auto GridBase::getDimension() const -> const Neon::index_3d&
@@ -69,6 +73,11 @@ auto GridBase::getSpacing() const -> const Vec_3d<double>&
 auto GridBase::getOrigin() const -> const Vec_3d<double>&
 {
     return mStorage->origin;
+}
+
+auto GridBase::getZOrigin() const -> int
+{
+	return mStorage->zOrigin;
 }
 
 auto GridBase::getNumAllCells() const

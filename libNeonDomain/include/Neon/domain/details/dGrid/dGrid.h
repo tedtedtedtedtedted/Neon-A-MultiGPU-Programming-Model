@@ -207,11 +207,14 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
     auto helpGetFirstZindex()
         const -> const Neon::set::DataSet<int32_t>&;
 
+	auto helpGetZOrigin()
+		const -> int; // TODO: Ted: Ask Max <int> or <int32_t>?
+
    private:
     struct Data
     {
         Data() = default;
-        Data(const Neon::Backend& bk);
+        Data(const Neon::Backend& bk, const Neon::int32_3d& dimension);
 
         //  partitionDims indicates the size of each partition. For example,
         // given a gridDim of size 77 (in 1D for simplicity) distrusted over 5
@@ -226,6 +229,7 @@ class dGrid : public Neon::domain::interface::GridBaseTemplate<dGrid, dIndex>
         Neon::aGrid                 memoryGrid /** memory allocator for fields */;
 
         Neon::set::MemSet<Neon::int8_3d> stencilIdTo3dOffset;
+		int							zOrigin; // Ted: Added <zOrigin> for partition of grid to each node/process in distributed systems.
     };
 
     std::shared_ptr<Data> mData;

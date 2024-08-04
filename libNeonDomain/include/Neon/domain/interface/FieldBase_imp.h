@@ -22,7 +22,8 @@ FieldBase<T, C>::FieldBase(const std::string&             FieldBaseUserName,
                            Neon::MemoryOptions            memoryOptions,
                            Neon::domain::haloStatus_et::e haloStatus,
                            const Vec_3d<double>&          spacing,
-                           const Vec_3d<double>&          origin)
+                           const Vec_3d<double>&          origin,
+						   int							  zOrigin)
 {
     mStorage = std::make_shared<Storage>(FieldBaseUserName,
                                          fieldClassName,
@@ -33,7 +34,8 @@ FieldBase<T, C>::FieldBase(const std::string&             FieldBaseUserName,
                                          memoryOptions,
                                          haloStatus,
                                          spacing,
-                                         origin);
+                                         origin,
+										 zOrigin);
 }
 
 template <typename T, int C>
@@ -139,6 +141,54 @@ auto FieldBase<T, C>::forEachActiveCell(const std::function<void(const Neon::ind
     }
 }
 
+// TODO: Ted: This is a temporary solution because need to confirm with Max for a good design: 
+template <typename T, int C>
+auto FieldBase<T, C>::forEachActiveCellDistributed(const std::function<void(const Neon::index_3d&,
+                                                                 const int& cardinality,
+                                                                 T&)>&     fun,
+                                        Neon::computeMode_t::computeMode_e mode)
+    -> void
+{
+    const auto& dim = getDimension();
+    if (mode == Neon::computeMode_t::computeMode_e::par) {
+#ifdef _MSC_VER
+#pragma omp parallel for
+#else
+#pragma omp parallel for collapse(1) schedule(guided)
+#endif
+        for (int z = 0; z < dim.z; z++) {
+            for (int y = 0; y < dim.y; y++) {
+                for (int x = 0; x < dim.x; x++) {
+                    for (int c = 0; c < getCardinality(); c++) {
+						Neon::index_3d local_point(x, y, z);
+                        Neon::index_3d global_point(x, y, z + getZOrigin()); // Ted: True global z-index of the current point in distributed systems.
+                        // const bool     isInside = this->isInsideDomain(index3D); // TODO: Ted: Temporarily disable this, but later extend <this->isInsideDomain()> function for distributed systems!!! // TODO: Ted: Is this even fine to disable? Are points in <dGrid> all active?
+                        // if (isInside) {
+                        auto& ref = this->getReference(local_point, c);
+                        fun(global_point, c, ref);
+                        // }
+                    }
+                }
+            }
+        }
+    } else {
+        for (int z = 0; z < dim.z; z++) {
+            for (int y = 0; y < dim.y; y++) {
+                for (int x = 0; x < dim.x; x++) {
+                    for (int c = 0; c < getCardinality(); c++) {
+						Neon::index_3d local_point(x, y, z);
+                        Neon::index_3d global_point(x, y, z + getZOrigin()); // Ted: True global z-index of the current point in distributed systems.
+                        // const bool     isInside = this->isInsideDomain(index3D); // TODO: Ted: Temporarily disable this, but later extend <this->isInsideDomain()> function for distributed systems!!! // TODO: Ted: Is this even fine to disable? Are points in <dGrid> all active?
+                        // if (isInside) {
+                        auto& ref = this->getReference(local_point, c);
+                        fun(global_point, c, ref);
+                        // }
+                    }
+                }
+            }
+        }
+    }
+}
 
 template <typename T, int C>
 auto FieldBase<T, C>::forEachActiveCell(const std::function<void(const Neon::index_3d&,
@@ -208,7 +258,8 @@ auto FieldBase<T, C>::forEachCell(const std::function<void(const Neon::index_3d&
             for (int y = 0; y < dim.y; y++) {
                 for (int x = 0; x < dim.x; x++) {
                     for (int c = 0; c < getCardinality(); c++) {
-                        Neon::index_3d index3D(x, y, z);
+                        // Neon::index_3d index3D(x, y, z + getZOrigin()); // Ted: True global z-index of the current point in distributed systems. // TODO: Ted: Later adapt to non-distributed systems.
+						Neon::index_3d index3D(x, y, z);
                         auto           val = this->operator()(index3D, c);
                         fun(index3D, c, val);
                     }
@@ -220,7 +271,8 @@ auto FieldBase<T, C>::forEachCell(const std::function<void(const Neon::index_3d&
             for (int y = 0; y < dim.y; y++) {
                 for (int x = 0; x < dim.x; x++) {
                     for (int c = 0; c < getCardinality(); c++) {
-                        Neon::index_3d index3D(x, y, z);
+                        // Neon::index_3d index3D(x, y, z + getZOrigin()); // Ted: True global z-index of the current point in distributed systems. // TODO: Ted: Later adapt to non-distributed systems.
+						Neon::index_3d index3D(x, y, z);
                         auto           val = this->operator()(index3D, c);
                         fun(index3D, c, val);
                     }
@@ -294,6 +346,38 @@ auto FieldBase<T, C>::ioFromDense(const Neon::IODense<ImportType, ImportIndex>& 
     });
 }
 
+// TODO: Ted: This is a temporary solution because need to confirm with Max for a good design:
+template <typename T, int C>
+template <typename ImportType,
+          typename ImportIndex>
+auto FieldBase<T, C>::ioFromDenseDistributed(const Neon::IODense<ImportType, ImportIndex>& ioDense)
+    -> void
+{
+    // {
+        // const int cardDense = ioDense.getCardinality();
+        // const int cardGrid = getCardinality();
+
+        // const auto dimensionDense = ioDense.getDimension().template newType<size_t>(); // TODO: Ted: Needs to be local-to-node/process dimension! Temporarily disable all these, but future will need to extend!!!
+        // const auto dimensionGrid = getDimension().template newType<size_t>();
+
+        // const bool cardinalityCheckFailed = (cardDense != cardGrid);
+        // const bool dimensionCheckFailed = dimensionDense != dimensionGrid;
+
+        // if (cardinalityCheckFailed || dimensionCheckFailed) {
+        //     NeonException exp("FieldBase Interface - ioFromDense");
+        //     exp << "FieldBase and ioDense are not compatible";
+        //     NEON_THROW(exp);
+        // }
+    // }
+    forEachActiveCellDistributed([&](const Neon::index_3d& point,
+                          const int&            cardinality,
+                          T&                    value) {
+        value = ioDense(point.template newType<ImportIndex>(), cardinality);
+    });
+}
+
+
+
 template <typename T, int C>
 template <typename VtiExportType>
 auto FieldBase<T, C>::ioToVtk(const std::string& fileName,
@@ -325,6 +409,12 @@ auto FieldBase<T, C>::getClassName() const -> const std::string&
 }
 
 template <typename T, int C>
+auto FieldBase<T, C>::getZOrigin() const -> int
+{
+	return mStorage->zOrigin;
+}
+
+template <typename T, int C>
 FieldBase<T, C>::Storage::Storage(const std::string              FieldBaseUserName,
                                   const std::string              fieldClassName,
                                   const Neon::index_3d&          dimension,
@@ -334,7 +424,8 @@ FieldBase<T, C>::Storage::Storage(const std::string              FieldBaseUserNa
                                   Neon::MemoryOptions            memoryOptions,
                                   Neon::domain::haloStatus_et::e haloStatus,
                                   const Vec_3d<double>&          spacing,
-                                  const Vec_3d<double>&          origin)
+                                  const Vec_3d<double>&          origin,
+								  int 							 zOrigin)
     : name(FieldBaseUserName),
       className(fieldClassName),
       dimension(dimension),
@@ -344,7 +435,8 @@ FieldBase<T, C>::Storage::Storage(const std::string              FieldBaseUserNa
       memoryOptions(memoryOptions),
       haloStatus(haloStatus),
       spacing(spacing),
-      origin(origin)
+      origin(origin),
+	  zOrigin(zOrigin)
 {
     if (name == "") {
         name = "Anonymous";
@@ -364,7 +456,8 @@ FieldBase<T, C>::Storage::Storage()
       memoryOptions(),
       haloStatus(),
       spacing(0.0),
-      origin(0.0)
+      origin(0.0),
+	  zOrigin(0) // TODO: Ted: Not sure about this! Come back later and fix it or ask Max!!!
 {
 }
 #if defined(NEON_OS_WINDOWS)

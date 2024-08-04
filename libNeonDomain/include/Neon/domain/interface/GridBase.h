@@ -46,6 +46,12 @@ class GridBase
         -> const Vec_3d<double>&;
 
     /**
+     * Return the true global z-index of the origin of the partitioned grid possessed by current node/process in distributed systems.
+     */
+	auto getZOrigin() const
+		-> int;
+
+    /**
      * Returns total number of cells.
      */
     auto getNumAllCells() const
@@ -148,7 +154,8 @@ class GridBase
              const Neon::set::DataSet<size_t>& nPartitionElements /**< Number of element per partition */,
              const Neon::index_3d&             defaultBlockSize,
              const Vec_3d<double>&             spacingData = Vec_3d<double>(1, 1, 1) /*! Spacing, i.e. size of a voxel */,
-             const Vec_3d<double>&             origin = Vec_3d<double>(0, 0, 0) /*!      Origin  */);
+             const Vec_3d<double>&             origin = Vec_3d<double>(0, 0, 0) /*!      Origin  */,
+			 int							   zOrigin = 0); // TODO: Ted: Might remove <dGrid::Data::zOrigin> in future because it is duplicate!!!
 
     /**
      * Protected initialization function used by derived classes to set some parameters.
@@ -160,7 +167,8 @@ class GridBase
               const Neon::set::DataSet<size_t>& nPartitionElements /**< Elements associated to each partition */,
               const Neon::index_3d&             defaultBlockSize /**< Default thread block size */,
               const Vec_3d<double>&             spacingData /**< Grid spacing */,
-              const Vec_3d<double>&             origin /**< Position in space of the grid's origin */) -> void;
+              const Vec_3d<double>&             origin /**< Position in space of the grid's origin */,
+			  int								zOrigin) -> void; // TODO: Ted: Might remove <dGrid::Data::zOrigin> in future because it is duplicate!!!
 
     /**
      * Protected method to set the default thread blocks size
@@ -195,6 +203,7 @@ class GridBase
         Vec_3d<double>             origin /**<             Position in space of the grid's origin   */;
         Defaults_t                 defaults;
         std::string                gridImplementationName;
+		int						   zOrigin; // TODO: Ted: Might remove <dGrid::Data::zOrigin> in future because it is duplicate!!!
     };
 
     std::shared_ptr<Storage> mStorage;

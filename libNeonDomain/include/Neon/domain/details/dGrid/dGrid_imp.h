@@ -12,7 +12,17 @@ dGrid::dGrid(const Neon::Backend&  backend,
              const Vec_3d<double>&        spacing,
              const Vec_3d<double>&        origin)
 {
-    mData = std::make_shared<Data>(backend);
+    mData = std::make_shared<Data>(backend, dimension);
+	
+	// Ted: Below partition for node/process in distributed systems.
+	Neon::int32_3d localDimension = dimension;
+	if (backend.isDistributed()) {
+		localDimension = dimension;
+		int uniformProc = dimension.z / backend.getProcessCount(); // TODO: Ted: Ask Max if need <int32_t>?
+		int reminderProc = dimension.z % backend.getProcessCount();
+		localDimension = (backend.getRank() < reminderProc) ? (uniformProc + 1) : uniformProc;
+	}
+
     const index_3d defaultBlockSize(256, 1, 1);
 
     {
@@ -21,19 +31,20 @@ dGrid::dGrid(const Neon::Backend&  backend,
         // then we reset to the computed number.
         dGrid::GridBase::init("dGrid",
                               backend,
-                              dimension,
+                              localDimension,
                               stencil,
                               nElementsPerPartition,
                               Neon::index_3d(256, 1, 1),
                               spacing,
-                              origin);
+                              origin,
+							  helpGetZOrigin());
     }
 
     const int32_t numDevices = getBackend().devSet().setCardinality();
     if (numDevices == 1) {
         // Single device
         mData->partitionDims[0] = getDimension();
-        mData->firstZIndex[0] = 0;
+        mData->firstZIndex[0] = 0 + this->helpGetZOrigin(); // Ted: For distributed systems, as <mData->firstZIndex> is used for <dField::helpGlobalIdxToPartitionIdx()> which is used NOT when executing container/kernel on data, but rather for <TestData> and <IODomain> to compare and assign data with <dField>!
     } else if (getDimension().z < numDevices) {
         NeonException exc("dGrid_t");
         exc << "The grid size in the z-direction (" << getDimension().z << ") is less the number of devices (" << numDevices
@@ -46,7 +57,7 @@ dGrid::dGrid(const Neon::Backend&  backend,
         int32_t uniform_z = getDimension().z / numDevices;
         int32_t reminder = getDimension().z % numDevices;
 
-        mData->firstZIndex[0] = 0;
+        mData->firstZIndex[0] = 0 + this->helpGetZOrigin(); // Ted: For distributed systems, as <mData->firstZIndex> is used for <dField::helpGlobalIdxToPartitionIdx()> which is used NOT when executing container/kernel on data, but rather for <TestData> and <IODomain> to compare and assign data with <dField>!
         backend.forEachDeviceSeq([&](const Neon::SetIdx& setIdx) {
             mData->partitionDims[setIdx].x = getDimension().x;
             mData->partitionDims[setIdx].y = getDimension().y;
@@ -166,21 +177,22 @@ dGrid::dGrid(const Neon::Backend&  backend,
                 mData->stencilIdTo3dOffset.eRef(devIdx, i) = pShort;
             }
         }
-        mData->stencilIdTo3dOffset.updateDeviceData(backend, Neon::Backend::mainStreamIdx);
+        mData->stencilIdTo3dOffset.updateDeviceData(backend, Neon::Backend::mainStreamIdx); // TODO: Ted: There will be sync with main stream, so do we do anything here for the distributed systems? Note that this function often appears, so will decide later and come back to this.
     }
 
     {  // Init base class information
         Neon::set::DataSet<size_t> nElementsPerPartition = backend.devSet().template newDataSet<size_t>([this](Neon::SetIdx idx, size_t& size) {
             size = mData->partitionDims[idx.idx()].template rMulTyped<size_t>();
-        });
+        }); // TODO: Ted: Ask Max: Why do twice?
         dGrid::GridBase::init("dGrid",
                               backend,
-                              dimension,
+                              localDimension,
                               stencil,
                               nElementsPerPartition,
                               defaultBlockSize,
                               spacing,
-                              origin);
+                              origin,
+							  helpGetZOrigin());
     }
 }
 

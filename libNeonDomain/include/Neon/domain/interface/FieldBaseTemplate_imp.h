@@ -32,7 +32,8 @@ FieldBaseTemplate<T, C, G, P, S>::FieldBaseTemplate(const Grid*                 
                                                memoryOptions,
                                                haloStatus,
                                                gridPtr->getSpacing(),
-                                               gridPtr->getOrigin()),
+                                               gridPtr->getOrigin(),
+											   gridPtr->getZOrigin()),
       mGridPrt(gridPtr) {
 }
 

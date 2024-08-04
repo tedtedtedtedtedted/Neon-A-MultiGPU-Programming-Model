@@ -46,7 +46,8 @@ bGrid<SBlock>::bGrid(const Neon::Backend&         backend,
                               nElementsPerPartition,
                               defaultKernelBlockSize,
                               multiResDiscreteIdxSpacing,
-                              origin);
+                              origin,
+							  0); // TODO: Ted: Temporarary fix for <GridBase::zOrigin> in distributed systems.
     }
 
     {  // Initialization of the partitioner
@@ -227,7 +228,8 @@ bGrid<SBlock>::bGrid(const Neon::Backend&         backend,
                           mData->mNumActiveVoxel,
                           SBlock::memBlockSize3D.template newType<int32_t>(),
                           spacingData,
-                          origin);
+                          origin,
+						  0); // TODO: Ted: Temporarary fix for <GridBase::zOrigin> in distributed systems.
     {  // setting launchParameters
         mData->launchParametersTable.forEachSeq([&](Neon::DataView               dw,
                                                     Neon::set::LaunchParameters& bLaunchParameters) {

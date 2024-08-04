@@ -27,7 +27,8 @@ tGrid<GridTransformation>::tGrid(FoundationGrid& foundationGrid)
                           foundationGrid.getNumActiveCellsPerPartition(),
                           foundationGrid.getDefaultBlock(),
                           foundationGrid.getSpacing(),
-                          foundationGrid.getOrigin());
+                          foundationGrid.getOrigin(),
+						  0); // TODO: Ted: Temporarary fix for <GridBase::zOrigin> in distributed systems.
 }
 
 template <typename GridTransformation>

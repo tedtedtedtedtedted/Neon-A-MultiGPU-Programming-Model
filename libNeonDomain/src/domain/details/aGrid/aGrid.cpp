@@ -61,7 +61,8 @@ auto aGrid::init(const Neon::Backend&              backend,
                           lenghts,
                           blockDim,
                           spacingData,
-                          origin);
+                          origin,
+						  0); // TODO: Ted: Temporarary fix for <GridBase::zOrigin> in distributed systems.
 
     mStorage = std::make_shared<Storage>();
 

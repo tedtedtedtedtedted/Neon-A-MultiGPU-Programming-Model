@@ -26,8 +26,7 @@ dField<T, C>::dField(const std::string&                        fieldUserName,
                                                                              T(0),
                                                                              dataUse,
                                                                              memoryOptions,
-                                                                             haloStatus) {
-
+                                                                             haloStatus) { 
     // only works if dims in x and y direction for all partitions match
     for (int i = 0; i < dims.size() - 1; ++i) {
         for (int j = i + 1; j < dims.size(); ++j) {

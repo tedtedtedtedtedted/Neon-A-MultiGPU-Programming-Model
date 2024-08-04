@@ -25,7 +25,8 @@ eGrid::eGrid(const Backend&                     backend,
                               nElementsPerPartition,
                               Neon::index_3d(256, 1, 1),
                               spacing,
-                              origin);
+                              origin,
+							  0); // TODO: Ted: Temporarary fix for <GridBase::zOrigin> in distributed systems.
     }
 
 
@@ -109,7 +110,8 @@ eGrid::eGrid(const Backend&                     backend,
                               nElementsPerPartition,
                               defaultBlockSize,
                               spacing,
-                              origin);
+                              origin,
+							  0); // TODO: Ted: Temporarary fix for <GridBase::zOrigin> in distributed systems.
     }
 }
 
