@@ -375,7 +375,7 @@ class DevSet
             const Neon::sys::GpuDevice& dev = Neon::sys::globalSpace::gpuSysObj().dev(m_devIds[setIdx.idx()]);
             // std::tuple<funParametersType_ta& ...>argsForIthGpuFunction(parametersVec.at(i) ...);
 
-            auto   iterator = dataSetContainer.getSpan(Neon::Execution::device, setIdx.idx(), kernelConfig.dataView());
+            auto   iterator = dataSetContainer.getSpan(Neon::Execution::device, setIdx.idx(), kernelConfig.dataView()); // TODO: After many layers of deduction/inference, <dataSetContainer> is <dGrid>, however, ask Max to confirm! 
             Lambda lambda = lambdaHolder(setIdx.idx(), kernelConfig.dataView());
             void*  untypedParams[2] = {&iterator, &lambda};
             void*  executor;
@@ -421,7 +421,7 @@ class DevSet
             const Neon::sys::GpuDevice& dev = Neon::sys::globalSpace::gpuSysObj().dev(m_devIds[setIdx.idx()]);
             // std::tuple<funParametersType_ta& ...>argsForIthGpuFunction(parametersVec.at(i) ...);
 
-            auto   iterator = dataSetContainer.getSpan(Neon::Execution::device, setIdx.idx(), kernelConfig.dataView());
+            auto   iterator = dataSetContainer.getSpan(Neon::Execution::device, setIdx.idx(), kernelConfig.dataView()); // TODO: After many layers of deduction/inference, <dataSetContainer> is <dGrid>, however, ask Max to confirm! 
             Lambda lambda = lambdaHolder(setIdx.idx(), kernelConfig.dataView());
             void*  untypedParams[2] = {&iterator, &lambda};
             void*  executor;

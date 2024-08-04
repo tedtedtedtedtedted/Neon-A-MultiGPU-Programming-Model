@@ -171,7 +171,7 @@ class GpuDevice : public DeviceInterface
             error = ::cudaLaunchKernel((void*)fun,
                                        cudaGrid,
                                        cudaBlock,
-                                       argumentPtrs,
+                                       argumentPtrs, // Ted: From its calling function e.g. <Neon::set::DevSet::helpLaunchLambdaOnSpanCUDA()>, we know <argumentPtrs> points to two things: 1. <iterator> (which is really is <dSpan>, where <dSpan.h> description says it is an abstraction of cell space of a partition for a device/GPU, and it helps lambda executor to run container on <aGrid>); 2. <lambda>.
                                        shrMemSize,
                                        gpuStream.stream());
 

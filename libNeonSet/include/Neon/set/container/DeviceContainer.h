@@ -21,7 +21,7 @@ struct DeviceContainer : ContainerAPI
                     const Neon::index_3d&                         blockSize,
                     std::function<int(const index_3d& blockSize)> shMemSizeFun)
         : m_loadingLambda(loadingLambda),
-          m_dataIteratorContainer(dataIteratorContainer)
+          m_dataIteratorContainer(dataIteratorContainer) // Ted: After many layers of deduction/inference, <dataIteratorContainer> is <dGrid>, however, ask Max to confirm!
     {
         setName(name);
         mExecution = execution;
