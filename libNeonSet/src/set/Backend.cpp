@@ -1,3 +1,5 @@
+// #define OMPI_SKIP_MPICXX 1 // TODO: Ted: On Graham, to avoid MPI_Op_create() cast between incompatible function types error, according to "https://github.com/marian-nmt/marian-dev/issues/741". This is not necessary on my machine.
+
 #include "Neon/set/Backend.h"
 #include <cassert>
 #include <functional>
@@ -11,6 +13,7 @@
 #include "Neon/set/DevSet.h"
 #include "cuda_runtime_api.h"
 #include <mpi.h>
+#include "nccl.h"
 
 namespace Neon {
 
@@ -64,19 +67,29 @@ Backend::Backend(const std::vector<int>& devIds,
  **/
 Backend::Backend(const std::vector<int>& 	devIds,
 				 Neon::Runtime 				runtime,
-				 bool						distributed)
+				 int&						main_argc,
+				 char**&					main_argv)
 {
-	assert(distributed == true); // TODO: Temporary check. 
 	assert(runtime == Neon::Runtime::stream); // TODO: Temporary check.
 	
     m_data = std::make_shared<Data_t>();
 
 	// Initializing MPI:
-	MPI_Init(nullptr, nullptr); // Ted: Don't think we need <&agrc> and <&argv> because not passing arguments and no desire to modifying command line arguments.
+	MPI_Init(&main_argc, &main_argv); // Will cause werid bug (suspecting memory leak) on Graham if used <MPI_Init(nullptr, nullptr)>.
 	MPI_Comm_rank(MPI_COMM_WORLD, &(selfData().myRank));
 	MPI_Comm_size(MPI_COMM_WORLD, &(selfData().numProc));
 
-	selfData().distributed = distributed;
+	// Put while-loop sleep for debugging here, after MPI_Init, instead of before!
+    // volatile int i = 0; 
+    // char hostname[255];
+    // gethostname(hostname, sizeof(hostname));
+    // printf("PID %d on %s ready for attach\n", getpid(), hostname);
+    // fflush(stdout);
+    // while (0 == i) {
+    //     sleep(5);
+    // }   
+
+	selfData().distributed = true;
     selfData().runtime = runtime;
     selfData().devSet = std::make_shared<Neon::set::DevSet>(devType(), devIds);
     selfData().streamSetVec.push_back(selfData().devSet->defaultStreamSet());
@@ -88,6 +101,8 @@ Backend::Backend(const std::vector<int>& 	devIds,
 	if (selfData().myRank >= selfData().numProc) {
 		throw std::runtime_error("Ted: MPI Ranks Not As Expected!!!"); // TODO: Will in future replace this with Neon error mechanism.
 	}
+
+	// Below NCCL part:
 }
 
 
@@ -127,12 +142,12 @@ Backend::Backend(const std::vector<int>&     devIds,
     assert(selfData().eventSetVec.size() == selfData().streamSetVec.size());
 }
 
-Backend::~Backend()
-{
-	if (isDistributed()) {
-		MPI_Finalize();
-	}
-}
+// Backend::~Backend()
+// {
+// 	if (isDistributed()) {
+// 		MPI_Finalize();
+// 	}
+// }
 
 auto Backend::clone(Neon::Runtime runtime) -> Backend
 {

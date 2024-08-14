@@ -24,7 +24,9 @@ template <typename G, typename T, int C>
 void runAllTestConfiguration(
     std::function<void(TestData<G, T, C>&)> f,
     [[maybe_unused]] int                    nGpus,
-    [[maybe_unused]] int                    minNumGpus)
+    [[maybe_unused]] int                    minNumGpus,
+	int&									main_argc,
+	char**&									main_argv)
 {
     std::vector<int> nGpuTest;
     for (int i = minNumGpus; i <= nGpus; i++) {
@@ -72,7 +74,7 @@ void runAllTestConfiguration(
                             ids.push_back(i % maxnGPUs);
                         }
 
-                        Neon::Backend       backend(ids, runtime, true);
+                        Neon::Backend       backend(ids, runtime, main_argc, main_argv);
                         Neon::MemoryOptions memoryOptions = backend.getMemoryOptions();
 
                         TestData<G, T, C> testData(backend,

@@ -78,7 +78,8 @@ class Backend
 	 */
 	Backend(const std::vector<int>& 	devIds, /*!  Vectors of device ids. There are CUDA device ids */
 			Neon::Runtime 				runtime, /*! Type of runtime to use */
-			bool 						distributed);
+			int&						main_argc,
+			char**&						main_argv);
 
     /**
      *
@@ -99,8 +100,8 @@ class Backend
     Backend(const Neon::set::DevSet&    devSet,
             const Neon::set::StreamSet& streamSet);
 
-	// Ted: Destructor for distributed systems.
-	~Backend();
+// 	// Ted: Destructor for distributed systems.
+// 	~Backend();
 
     template <typename T>
     auto newDataSet()

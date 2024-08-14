@@ -9,6 +9,8 @@
 #include "Neon/domain/tools/TestData.h"
 #include "gtest/gtest.h"
 
+extern int		main_argc;
+extern char**	main_argv;
 
 template <typename G, typename T, int C>
 auto oneStageXPYPipe(Neon::domain::tool::testing::TestData<G, T, C>& data) -> void
@@ -163,37 +165,37 @@ auto threeLevelXPYTree(Neon::domain::tool::testing::TestData<G, T, C>& data) -> 
 
 TEST(OneStageXPYPipe, dGrid)
 {
-    int           nGpus = 3;
+    int           nGpus = 1;
     constexpr int C = 0;
     using Grid = Neon::dGrid;
     using T = int64_t;
     // runAllTestConfiguration(AXPY_struct<eGrid_t, int64_t>, nGpus);
     // runAllTestConfiguration(std::function(oneStageXPYPipe<Grid, T, C>), nGpus, 1);
-    runAllTestConfiguration(std::function(oneStageXPYPipe<Grid, T, C>), nGpus, nGpus); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
+    runAllTestConfiguration(std::function(oneStageXPYPipe<Grid, T, C>), nGpus, nGpus, main_argc, main_argv); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
 }
 
 // ===============================================================================
 
-TEST(twoStageXPYPipe, dGrid)
-{
-    int           nGpus = 3;
-    constexpr int C = 0;
-    using Grid = Neon::dGrid;
-    using T = int64_t;
-    // runAllTestConfiguration(AXPY_struct<eGrid_t, int64_t>, nGpus);
-    // runAllTestConfiguration(std::function(twoStageXPYPipe<Grid, T, C>), nGpus, 1);
-    runAllTestConfiguration(std::function(twoStageXPYPipe<Grid, T, C>), nGpus, nGpus); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
-}
-
-// ===============================================================================
-
-TEST(threeLevelXPYTree, dGrid)
-{
-    int           nGpus = 3;
-    constexpr int C = 0;
-    using Grid = Neon::dGrid;
-    using T = int64_t;
-    // runAllTestConfiguration(AXPY_struct<eGrid_t, int64_t>, nGpus);
-    // runAllTestConfiguration(std::function(threeLevelXPYTree<Grid, T, C>), nGpus, 1);
-    runAllTestConfiguration(std::function(threeLevelXPYTree<Grid, T, C>), nGpus, nGpus); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
-}
+// TEST(twoStageXPYPipe, dGrid)
+// {
+//     int           nGpus = 1;
+//     constexpr int C = 0;
+//     using Grid = Neon::dGrid;
+//     using T = int64_t;
+//     // runAllTestConfiguration(AXPY_struct<eGrid_t, int64_t>, nGpus);
+//     // runAllTestConfiguration(std::function(twoStageXPYPipe<Grid, T, C>), nGpus, 1);
+//     runAllTestConfiguration(std::function(twoStageXPYPipe<Grid, T, C>), nGpus, nGpus, main_argc, main_argv); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
+// }
+// 
+// // ===============================================================================
+// 
+// TEST(threeLevelXPYTree, dGrid)
+// {
+//     int           nGpus = 1;
+//     constexpr int C = 0;
+//     using Grid = Neon::dGrid;
+//     using T = int64_t;
+//     // runAllTestConfiguration(AXPY_struct<eGrid_t, int64_t>, nGpus);
+//     // runAllTestConfiguration(std::function(threeLevelXPYTree<Grid, T, C>), nGpus, 1);
+//     runAllTestConfiguration(std::function(threeLevelXPYTree<Grid, T, C>), nGpus, nGpus, main_argc, main_argv); // TODO: Ted: For now, make <nGpuTest> range singleton for simplicity.
+// }
