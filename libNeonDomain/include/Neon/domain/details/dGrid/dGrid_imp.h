@@ -17,10 +17,9 @@ dGrid::dGrid(const Neon::Backend&  backend,
 	// Ted: Below partition for node/process in distributed systems.
 	Neon::int32_3d localDimension = dimension;
 	if (backend.isDistributed()) {
-		localDimension = dimension;
 		int uniformProc = dimension.z / backend.getProcessCount(); // TODO: Ted: Ask Max if need <int32_t>?
 		int reminderProc = dimension.z % backend.getProcessCount();
-		localDimension = (backend.getRank() < reminderProc) ? (uniformProc + 1) : uniformProc;
+		localDimension.z = (backend.getRank() < reminderProc) ? (uniformProc + 1) : uniformProc;
 	}
 
     const index_3d defaultBlockSize(256, 1, 1);
